@@ -23,6 +23,7 @@ Backend Node.js + Express + MySQL para la aplicación web de conteo físico de i
 - Nodemon (desarrollo)
 
 ## Estructura de carpetas
+```
 src/
 ├── config/          → conexión DB
 ├── controllers/     → lógica de negocio
@@ -30,6 +31,7 @@ src/
 ├── routes/          → endpoints API
 ├── app.js
 └── server.js
+```
 
 Método,Ruta,Descripción
 POST,/api/auth/login,Login → devuelve JWT
