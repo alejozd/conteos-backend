@@ -33,9 +33,12 @@ src/
 └── server.js
 ```
 
+## Endpoints principales (en desarrollo)
+```
 Método,Ruta,Descripción
 POST,/api/auth/login,Login → devuelve JWT
 POST,/api/admin/importar-saldos,Recibe saldos desde Delphi
 GET,/api/productos/buscar,Buscar por código + subcódigo
 POST,/api/conteos/guardar,Guardar conteo físico
 GET,/api/admin/dashboard,Vista en tiempo real (admin)
+```
