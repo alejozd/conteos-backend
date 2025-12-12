@@ -3,8 +3,8 @@ require("dotenv").config();
 const bcrypt = require("bcryptjs");
 const db = require("./src/config/database");
 
-const username = "alejo";
-const plainPassword = "Pascal2025*";
+const username = "*****"; //usuario
+const plainPassword = "******"; //texto del pass
 const role = "admin";
 const empresa_id = 1;
 
