@@ -86,4 +86,23 @@ const guardar = async (req, res) => {
   }
 };
 
-module.exports = { guardar };
+const listarActivos = async (req, res) => {
+  const empresa_id = req.user.empresa_id;
+
+  try {
+    const rows = await db.query(
+      `SELECT id, fecha, descripcion, activo
+       FROM conteos_grupos
+       WHERE empresa_id = ? AND activo = 1
+       ORDER BY fecha DESC`,
+      [empresa_id]
+    );
+
+    res.json(rows);
+  } catch (error) {
+    console.error("Error listando grupos activos:", error.message);
+    res.status(500).json({ message: "Error al listar grupos activos" });
+  }
+};
+
+module.exports = { guardar, listarActivos };
