@@ -1,5 +1,5 @@
 // src/controllers/auth.controller.js
-const db = require("./src/config/database");
+const db = require("../config/database");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 
@@ -19,7 +19,7 @@ const login = async (req, res) => {
 
     const usuario = rows[0];
 
-    if (!bcrypt.compareSync(password, usuario.password_hash)) {
+    if (!bcrypt.compareSync(password, usuario.password)) {
       return res
         .status(401)
         .json({ message: "Usuario o contraseña incorrectos" });
