@@ -24,6 +24,7 @@ app.use("/api/empresas", require("./routes/empresas.routes"));
 app.use("/api/productos", require("./routes/productos.routes"));
 app.use("/api/conteos", require("./routes/conteos.routes"));
 app.use("/api/admin", require("./routes/admin.routes"));
+app.use("/api/ubicaciones", require("./routes/ubicaciones.routes"));
 
 // Ruta de salud
 app.get("/api", (req, res) => {
