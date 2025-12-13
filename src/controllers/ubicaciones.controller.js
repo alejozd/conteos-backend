@@ -3,7 +3,7 @@ const db = require("../config/database");
 
 const listarPorBodega = async (req, res) => {
   const empresa_id = req.user.empresa_id;
-  const { bodegaId } = req.params;
+  const { bodegaId } = req.query;
 
   try {
     const rows = await db.query(
