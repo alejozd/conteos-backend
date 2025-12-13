@@ -68,58 +68,90 @@ const cargarProductos = async (req, res) => {
     return res.status(401).json({ message: "API Key inválida" });
   }
 
-  console.log("Headers:", req.headers);
-  console.log("Body raw:", JSON.stringify(req.body, null, 2));
-  console.log("Productos length:", req.body?.productos?.length);
   const { empresa_id = 1, productos = [] } = req.body;
 
   if (!Array.isArray(productos) || productos.length === 0) {
-    return res
-      .status(400)
-      .json({ message: "El array 'productos' es obligatorio" });
+    return res.status(400).json({
+      ok: false,
+      message: "El array 'productos' es obligatorio",
+    });
   }
 
+  const transaction = await db.sequelize.transaction();
+
   try {
-    // Borramos productos anteriores de la empresa
+    // 1️⃣ Borrado controlado
     await db.sequelize.query("DELETE FROM productos WHERE empresa_id = ?", {
       replacements: [empresa_id],
+      transaction,
     });
 
-    // Preparamos los valores para inserción masiva
+    // 2️⃣ Validación
+    const invalidos = productos.filter(
+      (p) =>
+        !p.codigo ||
+        !p.subcodigo ||
+        !p.nombre ||
+        p.nombre.length > 255 ||
+        (p.referencia && p.referencia.length > 100)
+    );
+
+    if (invalidos.length) {
+      await transaction.rollback();
+      return res.status(400).json({
+        ok: false,
+        message: "Productos inválidos",
+        ejemplo: invalidos[0],
+      });
+    }
+
     const values = productos.map((p) => [
       p.codigo,
       p.subcodigo,
-      p.nombre || "",
+      p.nombre,
       p.referencia || null,
       empresa_id,
     ]);
 
-    await db.sequelize.query(
-      `INSERT INTO productos 
-       (codigo, subcodigo, nombre, referencia, empresa_id) 
-       VALUES ?`,
-      { replacements: [values] }
-    );
+    // 🔑 Chunk más pequeño
+    const CHUNK_SIZE = 200;
 
-    // Emitimos evento para que el frontend sepa que hay nuevo catálogo
-    const io = req.app.get("io");
-    if (io) {
-      io.emit("catalogo-actualizado", { empresa_id, total: productos.length });
+    for (let i = 0; i < values.length; i += CHUNK_SIZE) {
+      const chunk = values.slice(i, i + CHUNK_SIZE);
+
+      await db.sequelize.query(
+        `INSERT INTO productos 
+         (codigo, subcodigo, nombre, referencia, empresa_id)
+         VALUES ?`,
+        {
+          replacements: [chunk],
+          transaction,
+        }
+      );
     }
 
+    // 3️⃣ Commit final
+    await transaction.commit();
+
     res.json({
-      message: "Catálogo de productos cargado correctamente",
+      ok: true,
+      message: "Catálogo cargado correctamente",
       empresa_id,
       registros: productos.length,
-      fecha: new Date().toLocaleString("es-CO"),
     });
   } catch (error) {
-    console.error("Error cargando productos:", error.message);
-    res.status(500).json({ message: "Error al cargar productos" });
+    await transaction.rollback();
+
+    console.error("Error cargando productos:", error);
+
+    res.status(500).json({
+      ok: false,
+      message: "Error al cargar productos",
+      error: error.original?.sqlMessage || error.message,
+    });
   }
 };
-
-module.exports = { cargarProductos }; // ← exportamos los dos
+module.exports = { cargarProductos };
 
 const crearGrupoConteo = async (req, res) => {
   const { descripcion, fecha = new Date().toISOString().slice(0, 10) } =
