@@ -62,6 +62,7 @@ const importarSaldos = async (req, res) => {
 
 module.exports = { importarSaldos };
 
+//Cargar Productos
 const cargarProductos = async (req, res) => {
   const apiKey = req.headers["x-api-key"] || req.query.apiKey;
   if (apiKey !== API_KEY_VALID) {
@@ -81,10 +82,10 @@ const cargarProductos = async (req, res) => {
 
   try {
     // 1️⃣ Borrado controlado
-    await db.sequelize.query("DELETE FROM productos WHERE empresa_id = ?", {
-      replacements: [empresa_id],
-      transaction,
-    });
+    // await db.sequelize.query("DELETE FROM productos WHERE empresa_id = ?", {
+    //   replacements: [empresa_id],
+    //   transaction,
+    // });
 
     // 2️⃣ Validación
     const invalidos = productos.filter(
@@ -120,9 +121,12 @@ const cargarProductos = async (req, res) => {
       const chunk = values.slice(i, i + CHUNK_SIZE);
 
       await db.sequelize.query(
-        `INSERT INTO productos 
-         (codigo, subcodigo, nombre, referencia, empresa_id)
-         VALUES ?`,
+        `INSERT INTO productos
+          (codigo, subcodigo, nombre, referencia, empresa_id)
+        VALUES ?
+        ON DUPLICATE KEY UPDATE
+          nombre = VALUES(nombre),
+          referencia = VALUES(referencia)`,
         {
           replacements: [chunk],
           transaction,
