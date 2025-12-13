@@ -68,6 +68,9 @@ const cargarProductos = async (req, res) => {
     return res.status(401).json({ message: "API Key inválida" });
   }
 
+  console.log("Headers:", req.headers);
+  console.log("Body raw:", JSON.stringify(req.body, null, 2));
+  console.log("Productos length:", req.body?.productos?.length);
   const { empresa_id = 1, productos = [] } = req.body;
 
   if (!Array.isArray(productos) || productos.length === 0) {
@@ -116,7 +119,7 @@ const cargarProductos = async (req, res) => {
   }
 };
 
-module.exports = { importarSaldos, cargarProductos }; // ← exportamos los dos
+module.exports = { cargarProductos }; // ← exportamos los dos
 
 const crearGrupoConteo = async (req, res) => {
   const { descripcion, fecha = new Date().toISOString().slice(0, 10) } =
