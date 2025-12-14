@@ -227,32 +227,31 @@ const listarSaldosResumen = async (req, res) => {
     const rows = await db.query(
       `
       SELECT
-        p.codigo,
-        p.subcodigo,
-        p.nombre,
-        p.referencia,
-        COALESCE(sg.saldo, 0) AS saldo_sistema,
-        COALESCE(SUM(cd.cantidad), 0) AS conteo_total,
-        COALESCE(sg.saldo, 0) - COALESCE(SUM(cd.cantidad), 0) AS diferencia
-      FROM productos p
-      LEFT JOIN saldos_global sg
-        ON sg.codigo = p.codigo
-       AND sg.subcodigo = p.subcodigo
-       AND sg.empresa_id = p.empresa_id
-      LEFT JOIN conteos_detalle cd
-        ON cd.codigo = p.codigo
-       AND cd.subcodigo = p.subcodigo
-      LEFT JOIN conteos_grupos cg
-        ON cg.id = cd.conteo_grupo_id
-       AND cg.empresa_id = p.empresa_id
-      WHERE p.empresa_id = ?
-      GROUP BY
-        p.codigo,
-        p.subcodigo,
-        p.nombre,
-        p.referencia,
-        sg.saldo
-      ORDER BY p.nombre
+  p.codigo,
+  p.subcodigo,
+  p.nombre,
+  p.referencia,
+  COALESCE(sg.saldo, 0) AS saldo_sistema,
+  COALESCE(SUM(c.cantidad), 0) AS conteo_total,
+  COALESCE(sg.saldo, 0) - COALESCE(SUM(c.cantidad), 0) AS diferencia
+FROM productos p
+LEFT JOIN saldos_global sg
+  ON sg.codigo = p.codigo
+ AND sg.subcodigo = p.subcodigo
+ AND sg.empresa_id = p.empresa_id
+LEFT JOIN conteos c
+  ON c.codigo = p.codigo
+ AND c.subcodigo = p.subcodigo
+ AND c.empresa_id = p.empresa_id
+WHERE p.empresa_id = ?
+GROUP BY
+  p.codigo,
+  p.subcodigo,
+  p.nombre,
+  p.referencia,
+  sg.saldo
+ORDER BY p.nombre;
+
       `,
       [empresa_id]
     );
