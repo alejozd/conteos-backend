@@ -351,7 +351,7 @@ const anularConteo = async (req, res) => {
 const getConteosAnulados = async (req, res) => {
   const empresa_id = req.user.empresa_id;
   try {
-    const [rows] = await db.query(
+    const rows = await db.query(
       `
       SELECT
         c.id,
