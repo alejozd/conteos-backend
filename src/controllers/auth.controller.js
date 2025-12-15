@@ -19,6 +19,12 @@ const login = async (req, res) => {
 
     const usuario = rows[0];
 
+    if (!usuario.activo) {
+      return res.status(403).json({
+        message: "Usuario inactivo. Contacte al administrador.",
+      });
+    }
+
     if (!bcrypt.compareSync(password, usuario.password)) {
       return res
         .status(401)
