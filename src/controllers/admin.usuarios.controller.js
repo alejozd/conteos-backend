@@ -26,61 +26,111 @@ exports.listarUsuarios = async (req, res) => {
 
 // 2️⃣ Crear usuario
 exports.crearUsuario = async (req, res) => {
-  const { username, password, role = "user", empresa_id } = req.body;
-
-  if (!username || !password) {
-    return res
-      .status(400)
-      .json({ message: "Username y password son obligatorios" });
-  }
-
   try {
-    const hash = await bcrypt.hash(password, 10);
+    const { username, password, role, empresa_id } = req.body;
 
-    await db.query(
-      `INSERT INTO usuarios (username, password, role, empresa_id)
-       VALUES (?, ?, ?, ?)`,
-      [username, hash, role, empresa_id || null]
-    );
-
-    res.status(201).json({ message: "Usuario creado correctamente" });
-  } catch (error) {
-    if (error.code === "ER_DUP_ENTRY") {
-      return res.status(409).json({ message: "El usuario ya existe" });
+    // 1️⃣ Validaciones básicas
+    if (!username || !password) {
+      return res.status(400).json({
+        message: "Username y password son obligatorios",
+      });
     }
 
+    if (!["admin", "user"].includes(role)) {
+      return res.status(400).json({
+        message: "Rol inválido",
+      });
+    }
+
+    // 2️⃣ Verificar username único
+    const existing = await db.query(
+      "SELECT id FROM usuarios WHERE username = ?",
+      [username]
+    );
+
+    if (existing.length > 0) {
+      return res.status(409).json({
+        message: "El username ya existe",
+      });
+    }
+
+    // 3️⃣ Encriptar password
+    const passwordHash = await bcrypt.hash(password, 10);
+
+    // 4️⃣ Insertar usuario
+    await db.query(
+      `
+      INSERT INTO usuarios (username, password, role, empresa_id, activo)
+      VALUES (?, ?, ?, ?, 1)
+      `,
+      [username, passwordHash, role, empresa_id || null]
+    );
+
+    res.status(201).json({
+      message: "Usuario creado correctamente",
+    });
+  } catch (error) {
     console.error("Error creando usuario:", error);
-    res.status(500).json({ message: "Error creando usuario" });
+    res.status(500).json({
+      message: "Error interno del servidor",
+    });
   }
 };
 
 // 3️⃣ Actualizar usuario (NO password aquí)
 exports.actualizarUsuario = async (req, res) => {
   const { id } = req.params;
-  const { username, role, empresa_id } = req.body;
+  const { password, role, empresa_id } = req.body;
 
   try {
-    // 🔒 Proteger usuario alejo
-    const [[user]] = await db.query(
-      "SELECT username FROM usuarios WHERE id = ?",
+    const rows = await db.query(
+      "SELECT id, username FROM usuarios WHERE id = ?",
       [id]
     );
+
+    const user = rows[0];
 
     if (!user) {
       return res.status(404).json({ message: "Usuario no encontrado" });
     }
 
     if (user.username === "alejo") {
-      return res
-        .status(403)
-        .json({ message: "Este usuario no se puede modificar" });
+      return res.status(403).json({
+        message: "Este usuario no puede ser modificado",
+      });
     }
 
+    const fields = [];
+    const values = [];
+
+    if (role) {
+      fields.push("role = ?");
+      values.push(role);
+    }
+
+    if (empresa_id) {
+      fields.push("empresa_id = ?");
+      values.push(empresa_id);
+    }
+
+    if (password) {
+      const bcrypt = require("bcryptjs");
+      const hash = await bcrypt.hash(password, 10);
+      fields.push("password = ?");
+      values.push(hash);
+    }
+
+    if (fields.length === 0) {
+      return res.status(400).json({
+        message: "No hay datos para actualizar",
+      });
+    }
+
+    values.push(id);
+
     await db.query(
-      `UPDATE usuarios
-       SET username = ?, role = ?, empresa_id = ?
-       WHERE id = ?`,
-      [username, role, empresa_id || null, id]
+      `UPDATE usuarios SET ${fields.join(", ")} WHERE id = ?`,
+      values
     );
 
     res.json({ message: "Usuario actualizado correctamente" });
