@@ -243,6 +243,7 @@ LEFT JOIN conteos c
   ON c.codigo = p.codigo
  AND c.subcodigo = p.subcodigo
  AND c.empresa_id = p.empresa_id
+ AND c.estado = 'VIGENTE'
 WHERE p.empresa_id = ?
 GROUP BY
   p.codigo,
@@ -263,10 +264,88 @@ ORDER BY p.nombre;
   }
 };
 
+const listarConteosDetalle = async (req, res) => {
+  const { codigo, subcodigo } = req.query;
+  const empresa_id = req.user.empresa_id;
+
+  if (!codigo || !subcodigo) {
+    return res
+      .status(400)
+      .json({ message: "Código y subcódigo son obligatorios" });
+  }
+
+  try {
+    const rows = await db.query(
+      `
+      SELECT
+        c.id,
+        c.cantidad,
+        c.estado,
+        c.timestamp,
+        u.username AS usuario,
+        ub.nombre AS ubicacion,
+        c.motivo_anulacion,
+        c.fecha_anulacion,
+        ua.username AS usuario_anula
+      FROM conteos c
+      JOIN usuarios u ON u.id = c.usuario_id
+      LEFT JOIN usuarios ua ON ua.id = c.usuario_anula
+      LEFT JOIN ubicaciones ub ON ub.id = c.ubicacion_id
+      WHERE c.codigo = ?
+        AND c.subcodigo = ?
+        AND c.empresa_id = ?
+      ORDER BY c.timestamp DESC
+      `,
+      [codigo, subcodigo, empresa_id]
+    );
+
+    res.json(rows);
+  } catch (error) {
+    console.error("Error listando detalle de conteos:", error.message);
+    res.status(500).json({ message: "Error obteniendo detalle de conteos" });
+  }
+};
+
+const anularConteo = async (req, res) => {
+  const { id } = req.params;
+  const { motivo } = req.body;
+  const usuario_anula = req.user.id;
+
+  if (!motivo) {
+    return res
+      .status(400)
+      .json({ message: "El motivo de anulación es obligatorio" });
+  }
+
+  try {
+    const result = await db.sequelize.query(
+      `
+      UPDATE conteos
+      SET estado = 'ANULADO',
+          motivo_anulacion = ?,
+          usuario_anula = ?,
+          fecha_anulacion = NOW()
+      WHERE id = ?
+        AND estado = 'VIGENTE'
+      `,
+      {
+        replacements: [motivo, usuario_anula, id],
+      }
+    );
+
+    res.json({ message: "Conteo anulado correctamente" });
+  } catch (error) {
+    console.error("Error anulando conteo:", error.message);
+    res.status(500).json({ message: "Error al anular conteo" });
+  }
+};
+
 module.exports = {
   importarSaldos,
   cargarProductos,
   crearGrupoConteo,
   listarGruposConteo,
   listarSaldosResumen,
+  listarConteosDetalle,
+  anularConteo,
 };
