@@ -333,6 +333,12 @@ const anularConteo = async (req, res) => {
       }
     );
 
+    if (result[1] === 0) {
+      return res
+        .status(404)
+        .json({ message: "Conteo no encontrado o ya anulado" });
+    }
+
     res.json({ message: "Conteo anulado correctamente" });
   } catch (error) {
     console.error("Error anulando conteo:", error.message);
