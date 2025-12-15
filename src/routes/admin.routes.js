@@ -22,4 +22,21 @@ router.get("/conteos-detalle", verificarToken, esAdmin, listarConteosDetalle);
 router.put("/conteos/:id/anular", verificarToken, esAdmin, anularConteo);
 router.get("/conteos-anulados", verificarToken, esAdmin, getConteosAnulados);
 
+const {
+  listarUsuarios,
+  crearUsuario,
+  actualizarUsuario,
+  cambiarEstadoUsuario,
+} = require("../controllers/admin.usuarios.controller");
+
+router.get("/usuarios", verificarToken, esAdmin, listarUsuarios);
+router.post("/usuarios", verificarToken, esAdmin, crearUsuario);
+router.put("/usuarios/:id", verificarToken, esAdmin, actualizarUsuario);
+router.patch(
+  "/usuarios/:id/estado",
+  verificarToken,
+  esAdmin,
+  cambiarEstadoUsuario
+);
+
 module.exports = router;
