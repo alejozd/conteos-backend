@@ -284,6 +284,7 @@ const listarConteosDetalle = async (req, res) => {
         c.timestamp,
         u.username AS usuario,
         ub.nombre AS ubicacion,
+        b.nombre AS bodega,
         c.motivo_anulacion,
         c.fecha_anulacion,
         ua.username AS usuario_anula
@@ -291,6 +292,7 @@ const listarConteosDetalle = async (req, res) => {
       JOIN usuarios u ON u.id = c.usuario_id
       LEFT JOIN usuarios ua ON ua.id = c.usuario_anula
       LEFT JOIN ubicaciones ub ON ub.id = c.ubicacion_id
+      LEFT JOIN bodegas b ON b.id = ub.bodega_id
       WHERE c.codigo = ?
         AND c.subcodigo = ?
         AND c.empresa_id = ?
