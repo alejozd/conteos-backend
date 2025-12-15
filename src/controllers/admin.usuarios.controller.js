@@ -96,29 +96,32 @@ exports.cambiarEstadoUsuario = async (req, res) => {
   const { activo } = req.body;
 
   try {
-    const [[user]] = await db.query(
-      "SELECT username FROM usuarios WHERE id = ?",
+    // 1. Buscar usuario
+    const [usuarios] = await db.query(
+      "SELECT id, username FROM usuarios WHERE id = ?",
       [id]
     );
 
-    if (!user) {
+    if (usuarios.length === 0) {
       return res.status(404).json({ message: "Usuario no encontrado" });
     }
 
-    if (user.username === "alejo") {
+    // 2. Proteger usuario alejo
+    if (usuarios[0].username === "alejo") {
       return res
         .status(403)
-        .json({ message: "Este usuario no se puede desactivar" });
+        .json({ message: "Este usuario no puede ser desactivado" });
     }
 
+    // 3. Actualizar estado
     await db.query("UPDATE usuarios SET activo = ? WHERE id = ?", [
       activo ? 1 : 0,
       id,
     ]);
 
-    res.json({ message: "Estado del usuario actualizado" });
+    res.json({ message: "Estado actualizado correctamente" });
   } catch (error) {
-    console.error("Error cambiando estado:", error);
-    res.status(500).json({ message: "Error cambiando estado" });
+    console.error("Error cambiando estado usuario:", error);
+    res.status(500).json({ message: "Error interno del servidor" });
   }
 };
