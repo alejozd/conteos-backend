@@ -92,32 +92,24 @@ exports.actualizarUsuario = async (req, res) => {
 
 // 4️⃣ Activar / desactivar usuario
 exports.cambiarEstadoUsuario = async (req, res) => {
-  const { id } = req.params;
-  const { activo } = req.body;
-
   try {
-    // 1. Buscar usuario
-    const [usuarios] = await db.query(
-      "SELECT id, username FROM usuarios WHERE id = ?",
-      [id]
-    );
+    const { id } = req.params;
+    const { activo } = req.body;
 
-    if (usuarios.length === 0) {
-      return res.status(404).json({ message: "Usuario no encontrado" });
+    // seguridad básica
+    if (req.user && Number(req.user.id) === Number(id)) {
+      return res.status(403).json({
+        message: "No puedes desactivar tu propio usuario",
+      });
     }
 
-    // 2. Proteger usuario alejo
-    if (usuarios[0].username === "alejo") {
+    if (id === 1) {
       return res
         .status(403)
         .json({ message: "Este usuario no puede ser desactivado" });
     }
 
-    // 3. Actualizar estado
-    await db.query("UPDATE usuarios SET activo = ? WHERE id = ?", [
-      activo ? 1 : 0,
-      id,
-    ]);
+    await db.query("UPDATE usuarios SET activo = ? WHERE id = ?", [activo, id]);
 
     res.json({ message: "Estado actualizado correctamente" });
   } catch (error) {
