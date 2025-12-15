@@ -9,6 +9,7 @@ const {
   listarSaldosResumen,
   listarConteosDetalle,
   anularConteo,
+  getConteosAnulados,
 } = require("../controllers/admin.controller");
 const { verificarToken, esAdmin } = require("../middlewares/auth.middleware");
 
@@ -19,5 +20,6 @@ router.get("/grupos/listar", verificarToken, esAdmin, listarGruposConteo);
 router.get("/saldos-resumen", verificarToken, esAdmin, listarSaldosResumen);
 router.get("/conteos-detalle", verificarToken, esAdmin, listarConteosDetalle);
 router.put("/conteos/:id/anular", verificarToken, esAdmin, anularConteo);
+router.get("/conteos-anulados", verificarToken, esAdmin, getConteosAnulados);
 
 module.exports = router;

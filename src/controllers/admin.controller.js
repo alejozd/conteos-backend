@@ -348,6 +348,43 @@ const anularConteo = async (req, res) => {
   }
 };
 
+const getConteosAnulados = async (req, res) => {
+  const empresa_id = req.user.empresa_id;
+  try {
+    const [rows] = await db.query(
+      `
+      SELECT
+        c.id,
+        p.nombre        AS producto,
+        c.codigo,
+        c.subcodigo,
+        c.cantidad,
+        b.nombre        AS bodega,
+        u.nombre        AS ubicacion,
+        uc.username     AS usuario_conteo,
+        ua.username     AS usuario_anulacion,
+        c.motivo_anulacion,
+        c.timestamp     AS fecha_conteo,
+        c.fecha_anulacion
+      FROM conteos c
+      LEFT JOIN productos p   ON p.codigo = c.codigo AND p.subcodigo = c.subcodigo
+      LEFT JOIN ubicaciones u ON u.id = c.ubicacion_id
+      LEFT JOIN bodegas b     ON b.id = u.bodega_id
+      LEFT JOIN usuarios uc   ON uc.id = c.usuario_id
+      LEFT JOIN usuarios ua   ON ua.id = c.usuario_anula
+      WHERE c.estado = 'ANULADO' AND p.empresa_id = ?
+      ORDER BY c.fecha_anulacion DESC
+    `,
+      [empresa_id]
+    );
+
+    res.json(rows);
+  } catch (error) {
+    console.error("Error obteniendo conteos anulados:", error);
+    res.status(500).json({ message: "Error obteniendo conteos anulados" });
+  }
+};
+
 module.exports = {
   importarSaldos,
   cargarProductos,
@@ -356,4 +393,5 @@ module.exports = {
   listarSaldosResumen,
   listarConteosDetalle,
   anularConteo,
+  getConteosAnulados,
 };
