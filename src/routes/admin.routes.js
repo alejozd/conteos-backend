@@ -40,6 +40,7 @@ router.patch(
 );
 
 const importarExcel = require("../controllers/importarExcel.controller");
+const validarSaldo = require("../validators/saldos.validator");
 const uploadExcel = require("../middlewares/uploadExcel");
 
 // Productos
@@ -63,13 +64,11 @@ router.post(
   verificarToken,
   esAdmin,
   uploadExcel.single("file"),
-  importarExcel("saldos_global", [
-    "CODIGO",
-    "SUBCODIGO",
-    "REFERENCIA",
-    "SALDO",
-    "EMPRESA_ID",
-  ])
+  importarExcel(
+    "saldos_global",
+    ["CODIGO", "SUBCODIGO", "REFERENCIA", "SALDO", "EMPRESA_ID"],
+    validarSaldo
+  )
 );
 
 module.exports = router;
