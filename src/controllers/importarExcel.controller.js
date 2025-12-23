@@ -64,11 +64,13 @@ const importarExcel =
           continue;
         }
 
-        const [result] = await db.query(sql, values);
+        const [, metadata] = await db.sequelize.query(sql, {
+          replacements: values,
+        });
 
-        if (result.affectedRows === 1) {
+        if (metadata.affectedRows === 1) {
           insertados++;
-        } else if (result.affectedRows === 2) {
+        } else if (metadata.affectedRows === 2) {
           actualizados++;
         }
 
