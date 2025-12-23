@@ -385,9 +385,34 @@ const getConteosAnulados = async (req, res) => {
   }
 };
 
+const listarProductos = async (req, res) => {
+  const empresa_id = req.user.empresa_id;
+  try {
+    const rows = await db.query(
+      `
+      SELECT 
+        codigo,
+        subcodigo,
+        nombre,
+        referencia        
+      FROM productos
+      WHERE empresa_id = ?
+      ORDER BY nombre
+    `,
+      [empresa_id]
+    );
+
+    res.json(rows);
+  } catch (error) {
+    console.error("Error obteniendo lista de productos:", error);
+    res.status(500).json({ message: "Error obteniendo lista de productos" });
+  }
+};
+
 module.exports = {
   importarSaldos,
   cargarProductos,
+  listarProductos,
   crearGrupoConteo,
   listarGruposConteo,
   listarSaldosResumen,
