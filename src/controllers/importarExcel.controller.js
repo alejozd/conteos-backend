@@ -38,6 +38,8 @@ const importarExcel =
 
       let total = 0;
       const errores = [];
+      let insertados = 0;
+      let actualizados = 0;
 
       for (let i = 0; i < data.length; i++) {
         const row = data[i];
@@ -62,7 +64,14 @@ const importarExcel =
           continue;
         }
 
-        await db.query(sql, values);
+        const [result] = await db.query(sql, values);
+
+        if (result.affectedRows === 1) {
+          insertados++;
+        } else if (result.affectedRows === 2) {
+          actualizados++;
+        }
+
         total++;
       }
 
@@ -77,6 +86,8 @@ const importarExcel =
       res.json({
         message: `${tableName} importada correctamente`,
         total,
+        insertados,
+        actualizados,
       });
     } catch (error) {
       console.error(`Error importando ${tableName}:`, error);
