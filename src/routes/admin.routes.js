@@ -39,4 +39,37 @@ router.patch(
   cambiarEstadoUsuario
 );
 
+const importarExcel = require("../controllers/importarExcel.controller");
+const uploadExcel = require("../middlewares/uploadExcel");
+
+// Productos
+router.post(
+  "/productos/importar",
+  verificarToken,
+  esAdmin,
+  uploadExcel.single("file"),
+  importarExcel("productos", [
+    "CODIGO",
+    "SUBCODIGO",
+    "NOMBRE",
+    "REFERENCIA",
+    "EMPRESA_ID",
+  ])
+);
+
+// Saldos
+router.post(
+  "/saldos/importar",
+  verificarToken,
+  esAdmin,
+  uploadExcel.single("file"),
+  importarExcel("saldos_global", [
+    "CODIGO",
+    "SUBCODIGO",
+    "REFERENCIA",
+    "SALDO",
+    "EMPRESA_ID",
+  ])
+);
+
 module.exports = router;
