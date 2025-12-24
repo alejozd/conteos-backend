@@ -52,6 +52,22 @@ const eliminar = async (req, res) => {
   const { id } = req.params;
   const empresa_id = req.user.empresa_id;
 
+  const [uso] = await db.query(
+    `SELECT COUNT(*) AS total
+     FROM conteos
+     WHERE ubicacion_id = ?
+       AND empresa_id = ?
+       AND estado = 'VIGENTE'`,
+    [id, empresa_id]
+  );
+
+  if (uso.total > 0) {
+    return res.status(400).json({
+      message:
+        "No se puede eliminar la ubicación porque tiene conteos asociados",
+    });
+  }
+
   await db.query(`DELETE FROM ubicaciones WHERE id = ? AND empresa_id = ?`, [
     id,
     empresa_id,
