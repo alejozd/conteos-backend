@@ -32,6 +32,8 @@ app.use("/api/conteos", require("./routes/conteos.routes"));
 app.use("/api/admin", require("./routes/admin.routes"));
 app.use("/api/ubicaciones", require("./routes/ubicaciones.routes"));
 app.use("/api/bodegas", require("./routes/bodegas.routes"));
+app.use("/api/admin/bodegas", require("./routes/admin.bodegas.routes"));
+app.use("/api/admin/ubicaciones", require("./routes/admin.ubicaciones.routes"));
 
 // Ruta de salud
 app.get("/api", (req, res) => {
