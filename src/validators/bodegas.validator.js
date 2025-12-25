@@ -1,6 +1,7 @@
 const nombresProcesados = new Set();
 
 const validarBodega = async (row, index) => {
+  nombresProcesados.clear();
   const nombre = row.NOMBRE?.trim().toUpperCase();
 
   if (!nombre) {
