@@ -2,6 +2,7 @@ const db = require("../config/database");
 const procesados = new Set();
 
 const validarUbicacion = async (row, index, empresa_id) => {
+  procesados.clear();
   const bodega = row.BODEGA?.trim().toUpperCase();
   const ubicacion = row.UBICACION?.trim().toUpperCase();
 
