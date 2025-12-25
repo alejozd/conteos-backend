@@ -44,6 +44,8 @@ router.patch(
 const importarExcel = require("../controllers/importarExcel.controller");
 const validarSaldo = require("../validators/saldos.validator");
 const uploadExcel = require("../middlewares/uploadExcel");
+const validarBodega = require("../validators/bodegas.validator");
+const validarUbicacion = require("../validators/ubicaciones.validator");
 
 // Productos
 router.post(
@@ -51,13 +53,20 @@ router.post(
   verificarToken,
   esAdmin,
   uploadExcel.single("file"),
-  importarExcel("productos", [
-    "CODIGO",
-    "SUBCODIGO",
-    "NOMBRE",
-    "REFERENCIA",
-    "EMPRESA_ID",
-  ])
+  (req, res) => {
+    req.transformRow = (row) => ({
+      ...row,
+      EMPRESA_ID: req.user.empresa_id,
+    });
+
+    return importarExcel("productos", [
+      "CODIGO",
+      "SUBCODIGO",
+      "NOMBRE",
+      "REFERENCIA",
+      "EMPRESA_ID",
+    ])(req, res);
+  }
 );
 
 // Saldos
@@ -66,11 +75,61 @@ router.post(
   verificarToken,
   esAdmin,
   uploadExcel.single("file"),
-  importarExcel(
-    "saldos_global",
-    ["CODIGO", "SUBCODIGO", "REFERENCIA", "SALDO", "EMPRESA_ID"],
-    validarSaldo
-  )
+  (req, res) => {
+    req.transformRow = (row) => ({
+      ...row,
+      EMPRESA_ID: req.user.empresa_id,
+    });
+
+    return importarExcel(
+      "saldos_global",
+      ["CODIGO", "SUBCODIGO", "REFERENCIA", "SALDO", "EMPRESA_ID"],
+      validarSaldo
+    )(req, res);
+  }
+);
+
+// Bodegas
+router.post(
+  "/bodegas/importar",
+  verificarToken,
+  esAdmin,
+  uploadExcel.single("file"),
+  (req, res) => {
+    // Inyectamos empresa_id en cada fila
+    req.transformRow = (row) => ({
+      NOMBRE: row.NOMBRE,
+      EMPRESA_ID: req.user.empresa_id,
+    });
+
+    return importarExcel(
+      "bodegas",
+      ["NOMBRE", "EMPRESA_ID"],
+      validarBodega
+    )(req, res);
+  }
+);
+
+//Ubicaciones
+router.post(
+  "/ubicaciones/importar",
+  verificarToken,
+  esAdmin,
+  uploadExcel.single("file"),
+  (req, res) => {
+    // Solo normalizamos nombres
+    req.transformRow = (row) => ({
+      UBICACION: row.UBICACION?.trim(),
+      BODEGA: row.BODEGA?.trim(),
+      EMPRESA_ID: req.user.empresa_id,
+    });
+
+    return importarExcel(
+      "ubicaciones",
+      ["NOMBRE", "BODEGA_ID", "EMPRESA_ID"],
+      validarUbicacion
+    )(req, res);
+  }
 );
 
 module.exports = router;

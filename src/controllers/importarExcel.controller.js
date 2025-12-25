@@ -18,7 +18,10 @@ const importarExcel =
       }
 
       const excelColumns = Object.keys(data[0]);
-      const missing = columns.filter((c) => !excelColumns.includes(c));
+      const requiredColumns = columns.filter(
+        (c) => !req.transformRow || excelColumns.includes(c)
+      );
+      const missing = requiredColumns.filter((c) => !excelColumns.includes(c));
       if (missing.length) {
         return res.status(400).json({
           message: "Columnas faltantes en el Excel",
@@ -27,26 +30,40 @@ const importarExcel =
       }
 
       const placeholders = columns.map(() => "?").join(", ");
+      const updateCols = columns.slice(1);
+
       const sql = `
-      INSERT INTO ${tableName} (${columns.join(", ")})
-      VALUES (${placeholders})
-      ON DUPLICATE KEY UPDATE ${columns
-        .slice(1)
-        .map((col) => `${col} = VALUES(${col})`)
-        .join(", ")}
-    `;
+        INSERT INTO ${tableName} (${columns.join(", ")})
+        VALUES (${placeholders})
+        ${
+          updateCols.length
+            ? "ON DUPLICATE KEY UPDATE " +
+              updateCols.map((col) => `${col} = VALUES(${col})`).join(", ")
+            : ""
+        }
+      `;
 
       let total = 0;
       const errores = [];
       let insertados = 0;
       let actualizados = 0;
+      const existsSql = `
+        SELECT 1
+        FROM ${tableName}
+        WHERE ${columns[0]} = ?
+        LIMIT 1
+      `;
 
       for (let i = 0; i < data.length; i++) {
-        const row = data[i];
+        let row = data[i];
+
+        if (req.transformRow) {
+          row = { ...row, ...req.transformRow(row) };
+        }
 
         // 🔹 Validaciones específicas por entidad
         if (validarFila) {
-          const error = await validarFila(row, i);
+          const error = await validarFila(row, i, req.user?.empresa_id);
           if (error) {
             errores.push(error);
             continue;
@@ -64,14 +81,19 @@ const importarExcel =
           continue;
         }
 
-        const [, metadata] = await db.sequelize.query(sql, {
+        const [existe] = await db.sequelize.query(existsSql, {
+          replacements: [values[0]],
+        });
+
+        // Ejecutar INSERT / UPDATE (el mismo SQL de siempre)
+        await db.sequelize.query(sql, {
           replacements: values,
         });
 
-        if (metadata.affectedRows === 1) {
-          insertados++;
-        } else if (metadata.affectedRows === 2) {
+        if (existe.length > 0) {
           actualizados++;
+        } else {
+          insertados++;
         }
 
         total++;
