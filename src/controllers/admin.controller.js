@@ -157,69 +157,6 @@ const cargarProductos = async (req, res) => {
 };
 module.exports = { cargarProductos };
 
-const crearGrupoConteo = async (req, res) => {
-  const { descripcion, fecha = new Date().toISOString().slice(0, 10) } =
-    req.body;
-  const empresa_id = req.user.empresa_id;
-
-  if (!descripcion) {
-    return res.status(400).json({ message: "La descripción es obligatoria" });
-  }
-
-  try {
-    const result = await db.sequelize.query(
-      `INSERT INTO conteos_grupos 
-       (fecha, descripcion, empresa_id, created_at) 
-       VALUES (?, ?, ?, NOW())`,
-      {
-        replacements: [fecha, descripcion, empresa_id],
-      }
-    );
-
-    const grupoId = result[0]; // ID del nuevo grupo
-
-    // Emitimos evento para que el frontend admin lo vea
-    const io = req.app.get("io");
-    if (io) {
-      io.emit("grupo-creado", {
-        id: grupoId,
-        fecha,
-        descripcion,
-        empresa_id,
-      });
-    }
-
-    res.json({
-      message: "Grupo de conteo creado correctamente",
-      grupo_id: grupoId,
-      descripcion,
-      fecha,
-    });
-  } catch (error) {
-    console.error("Error creando grupo:", error.message);
-    res.status(500).json({ message: "Error al crear grupo" });
-  }
-};
-
-const listarGruposConteo = async (req, res) => {
-  const empresa_id = req.user.empresa_id;
-
-  try {
-    const rows = await db.query(
-      `SELECT id, fecha, descripcion, created_at 
-       FROM conteos_grupos 
-       WHERE empresa_id = ? 
-       ORDER BY fecha DESC, created_at DESC`,
-      [empresa_id]
-    );
-
-    res.json(rows);
-  } catch (error) {
-    console.error("Error listando grupos:", error.message);
-    res.status(500).json({ message: "Error al listar grupos" });
-  }
-};
-
 const listarSaldosResumen = async (req, res) => {
   const empresa_id = req.user.empresa_id;
 
@@ -413,8 +350,6 @@ module.exports = {
   importarSaldos,
   cargarProductos,
   listarProductos,
-  crearGrupoConteo,
-  listarGruposConteo,
   listarSaldosResumen,
   listarConteosDetalle,
   anularConteo,

@@ -4,25 +4,42 @@ const router = express.Router();
 const {
   importarSaldos,
   cargarProductos,
-  crearGrupoConteo,
-  listarGruposConteo,
   listarSaldosResumen,
   listarConteosDetalle,
   anularConteo,
   getConteosAnulados,
   listarProductos,
 } = require("../controllers/admin.controller");
+const {
+  crearGrupoConteo,
+  listarGruposConteo,
+  editarGrupoConteo,
+  desactivarGrupoConteo,
+} = require("../controllers/conteosGrupos.controller");
+
 const { verificarToken, esAdmin } = require("../middlewares/auth.middleware");
 
 router.post("/importar-saldos", verificarToken, esAdmin, importarSaldos);
 router.post("/cargar-productos", verificarToken, esAdmin, cargarProductos);
-router.post("/grupos/crear", verificarToken, esAdmin, crearGrupoConteo);
-router.get("/grupos/listar", verificarToken, esAdmin, listarGruposConteo);
 router.get("/saldos-resumen", verificarToken, esAdmin, listarSaldosResumen);
 router.get("/conteos-detalle", verificarToken, esAdmin, listarConteosDetalle);
 router.put("/conteos/:id/anular", verificarToken, esAdmin, anularConteo);
 router.get("/conteos-anulados", verificarToken, esAdmin, getConteosAnulados);
 router.get("/productos", verificarToken, esAdmin, listarProductos);
+
+// Conteos Grupos
+router.post("/conteos-grupos", verificarToken, esAdmin, crearGrupoConteo);
+
+router.get("/conteos-grupos", verificarToken, esAdmin, listarGruposConteo);
+
+router.put("/conteos-grupos/:id", verificarToken, esAdmin, editarGrupoConteo);
+
+router.delete(
+  "/conteos-grupos/:id",
+  verificarToken,
+  esAdmin,
+  desactivarGrupoConteo
+);
 
 const {
   listarUsuarios,
