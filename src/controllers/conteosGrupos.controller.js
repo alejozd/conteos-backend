@@ -81,7 +81,7 @@ const editarGrupoConteo = async (req, res) => {
         WHERE grupo_id = ?`,
       {
         replacements: [id],
-        type: db.Sequelize.QueryTypes.SELECT,
+        type: QueryTypes.SELECT,
       }
     );
 
@@ -124,7 +124,7 @@ const desactivarGrupoConteo = async (req, res) => {
         WHERE grupo_id = ?`,
       {
         replacements: [id],
-        type: db.Sequelize.QueryTypes.SELECT,
+        type: QueryTypes.SELECT,
       }
     );
 
