@@ -81,11 +81,10 @@ const editarGrupoConteo = async (req, res) => {
         WHERE grupo_id = ?`,
       {
         replacements: [id],
-        type: QueryTypes.SELECT,
       }
     );
 
-    const total = rows.total;
+    const total = Number(rows?.[0]?.total || 0);
 
     if (total > 0) {
       return res.status(400).json({
@@ -118,22 +117,23 @@ const desactivarGrupoConteo = async (req, res) => {
   const empresa_id = req.user.empresa_id;
 
   try {
+    // Validar que no tenga conteos asociados
+    // Validar que no tenga conteos asociados
     const [rows] = await db.sequelize.query(
       `SELECT COUNT(*) AS total
         FROM conteos
         WHERE grupo_id = ?`,
       {
         replacements: [id],
-        type: QueryTypes.SELECT,
       }
     );
 
-    const total = rows.total;
+    const total = Number(rows?.[0]?.total || 0);
 
     if (total > 0) {
       return res.status(400).json({
         message:
-          "No se puede desactivar el conteo porque ya tiene registros asociados",
+          "No se puede editar el conteo porque ya tiene registros asociados",
       });
     }
 
