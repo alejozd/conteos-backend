@@ -78,7 +78,7 @@ const editarGrupoConteo = async (req, res) => {
     const [rows] = await db.sequelize.query(
       `SELECT COUNT(*) AS total
         FROM conteos
-        WHERE grupo_id = ?`,
+        WHERE conteo_grupo_id = ?`,
       {
         replacements: [id],
       }
@@ -122,7 +122,7 @@ const desactivarGrupoConteo = async (req, res) => {
     const [rows] = await db.sequelize.query(
       `SELECT COUNT(*) AS total
         FROM conteos
-        WHERE grupo_id = ?`,
+        WHERE conteo_grupo_id = ?`,
       {
         replacements: [id],
       }
