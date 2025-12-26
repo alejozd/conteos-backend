@@ -75,12 +75,17 @@ const editarGrupoConteo = async (req, res) => {
     }
 
     // Validar que no tenga conteos asociados
-    const [[{ total }]] = await db.query(
+    const [rows] = await db.sequelize.query(
       `SELECT COUNT(*) AS total
-       FROM conteos
-       WHERE grupo_id = ?`,
-      [id]
+        FROM conteos
+        WHERE grupo_id = ?`,
+      {
+        replacements: [id],
+        type: db.Sequelize.QueryTypes.SELECT,
+      }
     );
+
+    const total = rows.total;
 
     if (total > 0) {
       return res.status(400).json({
@@ -113,12 +118,17 @@ const desactivarGrupoConteo = async (req, res) => {
   const empresa_id = req.user.empresa_id;
 
   try {
-    const [[{ total }]] = await db.query(
+    const [rows] = await db.sequelize.query(
       `SELECT COUNT(*) AS total
-       FROM conteos
-       WHERE grupo_id = ?`,
-      [id]
+        FROM conteos
+        WHERE grupo_id = ?`,
+      {
+        replacements: [id],
+        type: db.Sequelize.QueryTypes.SELECT,
+      }
     );
+
+    const total = rows.total;
 
     if (total > 0) {
       return res.status(400).json({
