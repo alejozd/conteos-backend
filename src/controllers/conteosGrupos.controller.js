@@ -46,7 +46,7 @@ const listarGruposConteo = async (req, res) => {
     const rows = await db.query(
       `SELECT id, fecha, descripcion, activo, created_at
        FROM conteos_grupos
-       WHERE empresa_id = ? AND activo = 1
+       WHERE empresa_id = ?
        ORDER BY fecha DESC, created_at DESC`,
       [empresa_id]
     );
