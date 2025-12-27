@@ -159,6 +159,11 @@ module.exports = { cargarProductos };
 
 const listarSaldosResumen = async (req, res) => {
   const empresa_id = req.user.empresa_id;
+  const { conteo_grupo_id } = req.query;
+
+  if (!conteo_grupo_id) {
+    return res.status(400).json({ message: "conteo_grupo_id es obligatorio" });
+  }
 
   try {
     const rows = await db.query(
@@ -181,6 +186,7 @@ LEFT JOIN conteos c
  AND c.subcodigo = p.subcodigo
  AND c.empresa_id = p.empresa_id
  AND c.estado = 'VIGENTE'
+ AND c.conteo_grupo_id = ?
 WHERE p.empresa_id = ?
 GROUP BY
   p.codigo,
@@ -191,7 +197,7 @@ GROUP BY
 ORDER BY p.nombre;
 
       `,
-      [empresa_id]
+      [conteo_grupo_id, empresa_id]
     );
 
     res.json(rows);
@@ -204,11 +210,16 @@ ORDER BY p.nombre;
 const listarConteosDetalle = async (req, res) => {
   const { codigo, subcodigo } = req.query;
   const empresa_id = req.user.empresa_id;
+  const { conteo_grupo_id } = req.query;
 
   if (!codigo || !subcodigo) {
     return res
       .status(400)
       .json({ message: "Código y subcódigo son obligatorios" });
+  }
+
+  if (!conteo_grupo_id) {
+    return res.status(400).json({ message: "conteo_grupo_id es obligatorio" });
   }
 
   try {
@@ -233,9 +244,10 @@ const listarConteosDetalle = async (req, res) => {
       WHERE c.codigo = ?
         AND c.subcodigo = ?
         AND c.empresa_id = ?
+        AND c.conteo_grupo_id = ?
       ORDER BY c.timestamp DESC
       `,
-      [codigo, subcodigo, empresa_id]
+      [codigo, subcodigo, empresa_id, conteo_grupo_id]
     );
 
     res.json(rows);
@@ -249,6 +261,8 @@ const anularConteo = async (req, res) => {
   const { id } = req.params;
   const { motivo } = req.body;
   const usuario_anula = req.user.id;
+  const empresa_id = req.user.empresa_id;
+  const { conteo_grupo_id } = req.query;
 
   if (!motivo) {
     return res
@@ -256,8 +270,14 @@ const anularConteo = async (req, res) => {
       .json({ message: "El motivo de anulación es obligatorio" });
   }
 
+  if (!conteo_grupo_id) {
+    return res.status(400).json({
+      message: "conteo_grupo_id es obligatorio",
+    });
+  }
+
   try {
-    const result = await db.sequelize.query(
+    const [result] = await db.sequelize.query(
       `
       UPDATE conteos
       SET estado = 'ANULADO',
@@ -265,10 +285,12 @@ const anularConteo = async (req, res) => {
           usuario_anula = ?,
           fecha_anulacion = NOW()
       WHERE id = ?
+        AND empresa_id = ?
+        AND conteo_grupo_id = ?
         AND estado = 'VIGENTE'
       `,
       {
-        replacements: [motivo, usuario_anula, id],
+        replacements: [motivo, usuario_anula, id, empresa_id, conteo_grupo_id],
       }
     );
 
@@ -287,6 +309,8 @@ const anularConteo = async (req, res) => {
 
 const getConteosAnulados = async (req, res) => {
   const empresa_id = req.user.empresa_id;
+  const { conteo_grupo_id } = req.query;
+
   try {
     const rows = await db.query(
       `
@@ -309,10 +333,10 @@ const getConteosAnulados = async (req, res) => {
       LEFT JOIN bodegas b     ON b.id = u.bodega_id
       LEFT JOIN usuarios uc   ON uc.id = c.usuario_id
       LEFT JOIN usuarios ua   ON ua.id = c.usuario_anula
-      WHERE c.estado = 'ANULADO' AND p.empresa_id = ?
+      WHERE c.estado = 'ANULADO' AND c.empresa_id = ? AND c.conteo_grupo_id = ?
       ORDER BY c.fecha_anulacion DESC
     `,
-      [empresa_id]
+      [empresa_id, conteo_grupo_id]
     );
 
     res.json(rows);
