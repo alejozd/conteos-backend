@@ -14,6 +14,7 @@ const {
   crearGrupoConteo,
   listarGruposConteo,
   editarGrupoConteo,
+  activarGrupoConteo,
   desactivarGrupoConteo,
 } = require("../controllers/conteosGrupos.controller");
 
@@ -34,11 +35,20 @@ router.get("/conteos-grupos", verificarToken, esAdmin, listarGruposConteo);
 
 router.put("/conteos-grupos/:id", verificarToken, esAdmin, editarGrupoConteo);
 
-router.delete(
-  "/conteos-grupos/:id",
+// Desactivar grupo de conteo
+router.put(
+  "/conteos-grupos/:id/desactivar",
   verificarToken,
   esAdmin,
   desactivarGrupoConteo
+);
+
+// Activar grupo de conteo (desactiva los demás)
+router.put(
+  "/conteos-grupos/:id/activar",
+  verificarToken,
+  esAdmin,
+  activarGrupoConteo
 );
 
 const {
