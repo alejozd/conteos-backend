@@ -9,6 +9,7 @@ const {
   anularConteo,
   getConteosAnulados,
   listarProductos,
+  conteos_stats,
 } = require("../controllers/admin.controller");
 const {
   crearGrupoConteo,
@@ -27,6 +28,7 @@ router.get("/conteos-detalle", verificarToken, esAdmin, listarConteosDetalle);
 router.put("/conteos/:id/anular", verificarToken, esAdmin, anularConteo);
 router.get("/conteos-anulados", verificarToken, esAdmin, getConteosAnulados);
 router.get("/productos", verificarToken, esAdmin, listarProductos);
+router.get("/conteos-stats", verificarToken, esAdmin, conteos_stats);
 
 // Conteos Grupos
 router.post("/conteos-grupos", verificarToken, esAdmin, crearGrupoConteo);

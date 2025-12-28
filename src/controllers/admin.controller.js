@@ -370,6 +370,27 @@ const listarProductos = async (req, res) => {
   }
 };
 
+const conteos_stats = async (req, res) => {
+  const empresa_id = req.user.empresa_id;
+  const { conteo_grupo_id } = req.query;
+  try {
+    const rows = await db.query(
+      `
+      SELECT 
+        COUNT(*) AS total_registros,
+        SUM(cantidad) AS total_cantidad
+      FROM conteos
+      WHERE empresa_id = ? AND conteo_grupo_id = ? AND estado = 'VIGENTE'
+    `,
+      [empresa_id, conteo_grupo_id]
+    );
+    res.json(rows[0] || { total_registros: 0, total_cantidad: 0 });
+  } catch (error) {
+    console.error("Error obteniendo conteos stats:", error);
+    res.status(500).json({ message: "Error obteniendo conteos stats" });
+  }
+};
+
 module.exports = {
   importarSaldos,
   cargarProductos,
@@ -378,4 +399,5 @@ module.exports = {
   listarConteosDetalle,
   anularConteo,
   getConteosAnulados,
+  conteos_stats,
 };
