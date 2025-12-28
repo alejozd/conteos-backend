@@ -18,6 +18,7 @@ const {
   activarGrupoConteo,
   desactivarGrupoConteo,
 } = require("../controllers/conteosGrupos.controller");
+const { getComparativa } = require("../controllers/comparativa.controller");
 
 const { verificarToken, esAdmin } = require("../middlewares/auth.middleware");
 
@@ -160,5 +161,9 @@ router.post(
     )(req, res);
   }
 );
+
+// Ruta para obtener la matriz comparativa
+// Se espera que los IDs vengan como query params: ?ids=1,2,3
+router.get("/comparativa-conteos", verificarToken, esAdmin, getComparativa);
 
 module.exports = router;
