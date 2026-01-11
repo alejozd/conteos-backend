@@ -2,6 +2,7 @@ const express = require("express");
 const router = express.Router();
 const {
   getMiAsignacion,
+  getMisBodegas,
   getMisUbicaciones,
   listarAsignacionesAdmin,
   cambiarEstadoAsignacion,
@@ -9,6 +10,7 @@ const {
 const { verificarToken } = require("../middlewares/auth.middleware");
 
 router.get("/mi-tarea", verificarToken, getMiAsignacion);
+router.get("/mis-bodegas", verificarToken, getMisBodegas);
 router.get("/mis-ubicaciones", verificarToken, getMisUbicaciones);
 router.get("/admin/listar", verificarToken, listarAsignacionesAdmin);
 router.put("/admin/estado/:id", verificarToken, cambiarEstadoAsignacion);

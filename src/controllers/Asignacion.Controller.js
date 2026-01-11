@@ -42,17 +42,52 @@ const AsignacionController = {
   },
 
   // 2. Método para que Daniel cree asignaciones (para el Admin)
-  crearAsignacion: async (req, res) => {
-    const { usuario_id, conteo_grupo_id, ubicacion_id, empresa_id } = req.body;
+  crearAsignacionMasiva: async (req, res) => {
+    const { usuario_id, conteo_grupo_id, ubicaciones, empresa_id } = req.body;
+    // ubicaciones ahora es un array: [16, 17, 18...]
 
     try {
+      // Creamos un array de arrays para el insert múltiple de MySQL
+      const values = ubicaciones.map((ubiId) => [
+        usuario_id,
+        conteo_grupo_id,
+        ubiId,
+        empresa_id,
+        0, // estado inicial
+      ]);
+
       await db.query(
-        "INSERT INTO conteos_asignaciones (usuario_id, conteo_grupo_id, ubicacion_id, empresa_id) VALUES (?, ?, ?, ?)",
-        [usuario_id, conteo_grupo_id, ubicacion_id, empresa_id]
+        "INSERT INTO conteos_asignaciones (usuario_id, conteo_grupo_id, ubicacion_id, empresa_id, estado) VALUES ?",
+        [values]
       );
-      res.json({ message: "Asignación creada con éxito" });
+
+      res.json({
+        message: `${ubicaciones.length} ubicaciones asignadas con éxito`,
+      });
     } catch (error) {
-      res.status(500).json({ message: "Error al crear la asignación" });
+      console.error(error);
+      res
+        .status(500)
+        .json({ message: "Error al crear las asignaciones masivas" });
+    }
+  },
+
+  getMisBodegas: async (req, res) => {
+    const usuarioId = req.user.id;
+    try {
+      const rows = await db.query(
+        `SELECT DISTINCT 
+          b.id, 
+          b.nombre 
+       FROM conteos_asignaciones a
+       INNER JOIN ubicaciones u ON a.ubicacion_id = u.id
+       INNER JOIN bodegas b ON u.bodega_id = b.id
+       WHERE a.usuario_id = ? AND a.estado = 0`,
+        [usuarioId]
+      );
+      res.json(rows);
+    } catch (error) {
+      res.status(500).json({ message: "Error al obtener mis bodegas" });
     }
   },
 
