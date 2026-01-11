@@ -173,6 +173,65 @@ const AsignacionController = {
       res.status(500).json({ message: "Error al actualizar estado" });
     }
   },
+
+  getUbicacionesUsuarioAdmin: async (req, res) => {
+    const { usuarioId, bodegaId } = req.query; // Daniel envía estos parámetros
+    try {
+      const rows = await db.query(
+        `SELECT u.id, u.nombre 
+       FROM conteos_asignaciones a
+       INNER JOIN ubicaciones u ON a.ubicacion_id = u.id
+       WHERE a.usuario_id = ? AND u.bodega_id = ? AND a.estado = 0`,
+        [usuarioId, bodegaId]
+      );
+      res.json(rows);
+    } catch (error) {
+      res.status(500).json({ message: "Error al obtener asignaciones" });
+    }
+  },
+
+  guardarMasivoAdmin: async (req, res) => {
+    const { usuario_id, conteo_grupo_id, ubicaciones, bodega_id } = req.body;
+    // Obtenemos empresa_id del token (req.user lo llena el middleware verificarToken)
+    const empresa_id = req.user.empresa_id;
+
+    try {
+      await db.query("START TRANSACTION");
+
+      // 1. Borrar pendientes previas
+      await db.query(
+        `DELETE a FROM conteos_asignaciones a
+       INNER JOIN ubicaciones u ON a.ubicacion_id = u.id
+       WHERE a.usuario_id = ? AND u.bodega_id = ? AND a.estado = 0`,
+        [usuario_id, bodega_id]
+      );
+
+      // 2. Insertar nuevas
+      if (ubicaciones && ubicaciones.length > 0) {
+        const values = ubicaciones.map((ubiId) => [
+          usuario_id,
+          conteo_grupo_id,
+          ubiId,
+          empresa_id, // Usamos el del token
+          0,
+        ]);
+
+        // IMPORTANTE: Verifica que tu librería de BD acepte [values]
+        // Si usas mysql2, el formato es [[row1, row2...]]
+        await db.query(
+          "INSERT INTO conteos_asignaciones (usuario_id, conteo_grupo_id, ubicacion_id, empresa_id, estado) VALUES ?",
+          [values]
+        );
+      }
+
+      await db.query("COMMIT");
+      res.json({ message: "Asignación actualizada" });
+    } catch (e) {
+      await db.query("ROLLBACK");
+      console.error("ERROR EN GUARDAR MASIVO:", e.message);
+      res.status(500).json({ message: "Error al guardar asignaciones" });
+    }
+  },
 };
 
 module.exports = AsignacionController;

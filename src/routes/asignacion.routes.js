@@ -6,6 +6,8 @@ const {
   getMisUbicaciones,
   listarAsignacionesAdmin,
   cambiarEstadoAsignacion,
+  getUbicacionesUsuarioAdmin,
+  guardarMasivoAdmin,
 } = require("../controllers/Asignacion.Controller");
 const { verificarToken } = require("../middlewares/auth.middleware");
 
@@ -14,5 +16,11 @@ router.get("/mis-bodegas", verificarToken, getMisBodegas);
 router.get("/mis-ubicaciones", verificarToken, getMisUbicaciones);
 router.get("/admin/listar", verificarToken, listarAsignacionesAdmin);
 router.put("/admin/estado/:id", verificarToken, cambiarEstadoAsignacion);
+router.get(
+  "/admin/ubicaciones-usuario",
+  verificarToken,
+  getUbicacionesUsuarioAdmin
+);
+router.post("/guardar-masivo", verificarToken, guardarMasivoAdmin);
 
 module.exports = router;
