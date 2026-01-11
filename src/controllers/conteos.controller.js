@@ -22,6 +22,22 @@ const guardar = async (req, res) => {
   }
 
   try {
+    // NUEVA VALIDACIÓN: ¿El conteo sigue activo?
+    const grupoRows = await db.query(
+      "SELECT activo, descripcion FROM conteos_grupos WHERE id = ? AND empresa_id = ? LIMIT 1",
+      [conteo_grupo_id, empresa_id]
+    );
+
+    if (grupoRows.length === 0) {
+      return res.status(404).json({ message: "El grupo de conteo no existe." });
+    }
+
+    if (grupoRows[0].activo !== 1) {
+      return res.status(403).json({
+        message: `El conteo '${grupoRows[0].descripcion}' ha sido cerrado o desactivado. Por favor, refresca la página.`,
+      });
+    }
+
     // Buscamos el producto
     const rows = await db.query(
       "SELECT nombre, referencia FROM productos WHERE codigo = ? AND subcodigo = ? AND empresa_id = ? LIMIT 1",
