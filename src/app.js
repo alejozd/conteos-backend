@@ -34,6 +34,7 @@ app.use("/api/ubicaciones", require("./routes/ubicaciones.routes"));
 app.use("/api/bodegas", require("./routes/bodegas.routes"));
 app.use("/api/admin/bodegas", require("./routes/admin.bodegas.routes"));
 app.use("/api/admin/ubicaciones", require("./routes/admin.ubicaciones.routes"));
+app.use("/api/asignacion", require("./routes/asignacion.routes"));
 
 // Ruta de salud
 app.get("/api", (req, res) => {
