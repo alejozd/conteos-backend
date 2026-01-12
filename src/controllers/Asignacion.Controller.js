@@ -174,6 +174,53 @@ const AsignacionController = {
     }
   },
 
+  finalizarBodegaAdmin: async (req, res) => {
+    console.log("BODY RECIBIDO:", req.body);
+    // Asegúrate de que los nombres coincidan con lo que envía el frontend
+    const { usuarioId, grupoId, bodegaId } = req.body;
+
+    // Validación preventiva
+    if (!usuarioId || !grupoId || !bodegaId) {
+      return res.status(400).json({
+        message:
+          "Faltan parámetros: usuarioId, grupoId o bodegaId son obligatorios.",
+      });
+    }
+
+    try {
+      const sql = `
+            UPDATE conteos_asignaciones AS a
+            INNER JOIN ubicaciones AS u ON a.ubicacion_id = u.id
+            SET a.estado = 1
+            WHERE a.usuario_id = ? 
+              AND a.conteo_grupo_id = ? 
+              AND u.bodega_id = ? 
+              AND a.estado = 0
+        `;
+
+      const params = [Number(usuarioId), Number(grupoId), Number(bodegaId)];
+
+      const result = await db.query(sql, params);
+
+      // En algunas librerías de Node, el resultado viene en un array [rows, fields]
+      // o directamente el objeto de resultado.
+      const affected =
+        result?.affectedRows !== undefined ? result.affectedRows : "procesado";
+
+      console.log(`Filas finalizadas: ${affected}`);
+
+      res.json({
+        message: "Todas las ubicaciones de la bodega han sido finalizadas.",
+        count: affected,
+      });
+    } catch (error) {
+      console.error("Error al finalizar bodega:", error);
+      res
+        .status(500)
+        .json({ message: "Error al finalizar la bodega masivamente" });
+    }
+  },
+
   getUbicacionesUsuarioAdmin: async (req, res) => {
     const { usuarioId, bodegaId } = req.query; // Daniel envía estos parámetros
     try {

@@ -5,6 +5,7 @@ const {
   getMisBodegas,
   getMisUbicaciones,
   listarAsignacionesAdmin,
+  finalizarBodegaAdmin,
   cambiarEstadoAsignacion,
   getUbicacionesUsuarioAdmin,
   guardarMasivoAdmin,
@@ -16,6 +17,7 @@ router.get("/mi-tarea", verificarToken, getMiAsignacion);
 router.get("/mis-bodegas", verificarToken, getMisBodegas);
 router.get("/mis-ubicaciones", verificarToken, getMisUbicaciones);
 router.get("/admin/listar", verificarToken, listarAsignacionesAdmin);
+router.put("/admin/finalizar-bodega", verificarToken, finalizarBodegaAdmin);
 router.put("/admin/estado/:id", verificarToken, cambiarEstadoAsignacion);
 router.get(
   "/admin/ubicaciones-usuario",
