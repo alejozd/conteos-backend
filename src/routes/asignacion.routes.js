@@ -8,6 +8,7 @@ const {
   cambiarEstadoAsignacion,
   getUbicacionesUsuarioAdmin,
   guardarMasivoAdmin,
+  getResumenUsuarioGrupo,
 } = require("../controllers/Asignacion.Controller");
 const { verificarToken } = require("../middlewares/auth.middleware");
 
@@ -22,5 +23,6 @@ router.get(
   getUbicacionesUsuarioAdmin
 );
 router.post("/guardar-masivo", verificarToken, guardarMasivoAdmin);
+router.get("/admin/resumen-usuario", verificarToken, getResumenUsuarioGrupo);
 
 module.exports = router;

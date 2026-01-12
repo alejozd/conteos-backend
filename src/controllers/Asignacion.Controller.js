@@ -190,34 +190,57 @@ const AsignacionController = {
     }
   },
 
+  getResumenUsuarioGrupo: async (req, res) => {
+    const { usuarioId, grupoId } = req.query;
+    try {
+      const rows = await db.query(
+        `SELECT 
+          b.nombre as bodega_nombre, 
+          COUNT(a.ubicacion_id) as total_ubicaciones
+       FROM conteos_asignaciones a
+       INNER JOIN ubicaciones u ON a.ubicacion_id = u.id
+       INNER JOIN bodegas b ON u.bodega_id = b.id
+       WHERE a.usuario_id = ? AND a.conteo_grupo_id = ? AND a.estado = 0
+       GROUP BY b.id, b.nombre`,
+        [usuarioId, grupoId]
+      );
+      res.json(rows);
+    } catch (error) {
+      res.status(500).json({ message: "Error al obtener resumen" });
+    }
+  },
+
   guardarMasivoAdmin: async (req, res) => {
     const { usuario_id, conteo_grupo_id, ubicaciones, bodega_id } = req.body;
-    // Obtenemos empresa_id del token (req.user lo llena el middleware verificarToken)
     const empresa_id = req.user.empresa_id;
 
     try {
       await db.query("START TRANSACTION");
 
-      // 1. Borrar pendientes previas
+      // 1. LIMPIEZA: Borramos TODAS las asignaciones PENDIENTES (estado 0)
+      // de este usuario en esta bodega para este grupo.
+      // Esto permite que si Daniel quitó una ubicación en el PickList,
+      // el registro desaparezca de la tabla.
       await db.query(
         `DELETE a FROM conteos_asignaciones a
        INNER JOIN ubicaciones u ON a.ubicacion_id = u.id
-       WHERE a.usuario_id = ? AND u.bodega_id = ? AND a.estado = 0`,
-        [usuario_id, bodega_id]
+       WHERE a.usuario_id = ? 
+         AND u.bodega_id = ? 
+         AND a.conteo_grupo_id = ?
+         AND a.estado = 0`,
+        [usuario_id, bodega_id, conteo_grupo_id]
       );
 
-      // 2. Insertar nuevas
+      // 2. RECREACIÓN: Insertamos lo que Daniel dejó en la columna derecha del PickList.
       if (ubicaciones && ubicaciones.length > 0) {
         const values = ubicaciones.map((ubiId) => [
           usuario_id,
           conteo_grupo_id,
           ubiId,
-          empresa_id, // Usamos el del token
-          0,
+          empresa_id,
+          0, // Siempre entran como pendientes
         ]);
 
-        // IMPORTANTE: Verifica que tu librería de BD acepte [values]
-        // Si usas mysql2, el formato es [[row1, row2...]]
         await db.query(
           "INSERT INTO conteos_asignaciones (usuario_id, conteo_grupo_id, ubicacion_id, empresa_id, estado) VALUES ?",
           [values]
@@ -225,11 +248,10 @@ const AsignacionController = {
       }
 
       await db.query("COMMIT");
-      res.json({ message: "Asignación actualizada" });
+      res.json({ message: "Sincronización exitosa" });
     } catch (e) {
       await db.query("ROLLBACK");
-      console.error("ERROR EN GUARDAR MASIVO:", e.message);
-      res.status(500).json({ message: "Error al guardar asignaciones" });
+      res.status(500).json({ message: "Error en la sincronización" });
     }
   },
 };
