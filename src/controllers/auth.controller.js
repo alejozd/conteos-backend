@@ -7,9 +7,15 @@ const login = async (req, res) => {
   const { username, password } = req.body;
 
   try {
-    const rows = await db.query("SELECT * FROM usuarios WHERE username = ?", [
-      username,
-    ]);
+    const rows = await db.query(
+      `
+      SELECT u.*, e.nombre AS empresa_nombre 
+      FROM usuarios u
+      LEFT JOIN empresas e ON e.id = u.empresa_id
+      WHERE u.username = ?
+    `,
+      [username]
+    );
 
     if (rows.length === 0) {
       return res
@@ -37,6 +43,7 @@ const login = async (req, res) => {
         username: usuario.username,
         role: usuario.role,
         empresa_id: usuario.empresa_id,
+        empresa_nombre: usuario.empresa_nombre,
       },
       process.env.JWT_SECRET,
       { expiresIn: process.env.JWT_EXPIRES_IN || "8h" }
@@ -49,6 +56,7 @@ const login = async (req, res) => {
         username: usuario.username,
         role: usuario.role,
         empresa_id: usuario.empresa_id,
+        empresa_nombre: usuario.empresa_nombre,
       },
     });
   } catch (error) {
