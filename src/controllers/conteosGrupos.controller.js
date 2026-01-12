@@ -120,15 +120,6 @@ const activarGrupoConteo = async (req, res) => {
   const t = await db.sequelize.transaction();
 
   try {
-    // 1. Desactivar todos
-    await db.sequelize.query(
-      `UPDATE conteos_grupos
-       SET activo = 0
-       WHERE empresa_id = ?`,
-      { replacements: [empresa_id], transaction: t }
-    );
-
-    // 2. Activar el seleccionado
     const [result] = await db.sequelize.query(
       `UPDATE conteos_grupos
        SET activo = 1
