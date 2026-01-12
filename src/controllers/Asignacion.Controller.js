@@ -258,34 +258,76 @@ const AsignacionController = {
   },
 
   guardarMasivoAdmin: async (req, res) => {
-    const { usuario_id, conteo_grupo_id, ubicaciones, bodega_id } = req.body;
+    const usuario_id = Number(req.body.usuario_id);
+    const conteo_grupo_id = Number(req.body.conteo_grupo_id);
+    const { ubicaciones, bodega_id } = req.body;
     const empresa_id = req.user.empresa_id;
 
+    console.log("=== TRACE: INICIO GUARDAR MASIVO ===");
+
     try {
+      // 1. VALIDACIÓN SIN DESESTRUCTURAR PARA ANALIZAR EL OBJETO
+      const result = await db.query(
+        `SELECT cg.descripcion 
+             FROM conteos_asignaciones ca
+             JOIN conteos_grupos cg ON ca.conteo_grupo_id = cg.id
+             WHERE ca.usuario_id = ? 
+               AND ca.conteo_grupo_id <> ? 
+               AND ca.estado = 0 
+               AND ca.empresa_id = ?
+             LIMIT 1`,
+        [usuario_id, conteo_grupo_id, empresa_id]
+      );
+
+      // LÓGICA DE DETECCIÓN DINÁMICA:
+      // Algunos drivers devuelven [rows, fields], otros solo rows.
+      let rows = [];
+      if (Array.isArray(result)) {
+        // Si el primer elemento es un array, son las filas (mysql2 estándar)
+        // Si el primer elemento es un objeto, result mismo son las filas (mysql estándar)
+        rows = Array.isArray(result[0]) ? result[0] : result;
+      } else if (result && result.rows) {
+        rows = result.rows; // Para drivers tipo pg o wrappers específicos
+      }
+
+      console.log("Trace de Filas:", rows);
+
+      // Verificamos si encontramos al menos un registro
+      if (rows && rows.length > 0) {
+        // Extraemos la descripción de la primera fila encontrada
+        const nombreGrupo = rows[0].descripcion;
+        console.log(
+          "!!! BLOQUEO ACTIVADO !!! Conflicto detectado con:",
+          nombreGrupo
+        );
+
+        return res.status(400).json({
+          message: `BLOQUEADO: El usuario ya tiene tareas pendientes en el grupo "${nombreGrupo}". Debe finalizarlas antes de cambiar de grupo.`,
+        });
+      }
+
+      console.log("Validación superada: No hay conflictos.");
+
+      // 2. PROCESO DE GUARDADO
       await db.query("START TRANSACTION");
 
-      // 1. LIMPIEZA: Borramos TODAS las asignaciones PENDIENTES (estado 0)
-      // de este usuario en esta bodega para este grupo.
-      // Esto permite que si Daniel quitó una ubicación en el PickList,
-      // el registro desaparezca de la tabla.
       await db.query(
         `DELETE a FROM conteos_asignaciones a
-       INNER JOIN ubicaciones u ON a.ubicacion_id = u.id
-       WHERE a.usuario_id = ? 
-         AND u.bodega_id = ? 
-         AND a.conteo_grupo_id = ?
-         AND a.estado = 0`,
+             INNER JOIN ubicaciones u ON a.ubicacion_id = u.id
+             WHERE a.usuario_id = ? 
+               AND u.bodega_id = ? 
+               AND a.conteo_grupo_id = ?
+               AND a.estado = 0`,
         [usuario_id, bodega_id, conteo_grupo_id]
       );
 
-      // 2. RECREACIÓN: Insertamos lo que Daniel dejó en la columna derecha del PickList.
       if (ubicaciones && ubicaciones.length > 0) {
         const values = ubicaciones.map((ubiId) => [
           usuario_id,
           conteo_grupo_id,
           ubiId,
           empresa_id,
-          0, // Siempre entran como pendientes
+          0,
         ]);
 
         await db.query(
@@ -295,10 +337,12 @@ const AsignacionController = {
       }
 
       await db.query("COMMIT");
+      console.log("=== TRACE: FINALIZADO CON ÉXITO ===");
       res.json({ message: "Sincronización exitosa" });
     } catch (e) {
-      await db.query("ROLLBACK");
-      res.status(500).json({ message: "Error en la sincronización" });
+      console.error("!!! ERROR CRÍTICO EN TRACE !!!", e.message);
+      if (db.query) await db.query("ROLLBACK");
+      res.status(500).json({ message: "Error interno del servidor" });
     }
   },
 };
