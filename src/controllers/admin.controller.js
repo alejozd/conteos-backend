@@ -156,6 +156,7 @@ LEFT JOIN conteos c
  AND c.conteo_grupo_id = ?
 WHERE p.empresa_id = ?
 GROUP BY
+  p.id,
   p.nombre,
   p.referencia,
   sg.saldo
