@@ -96,58 +96,23 @@ const cargarProductos = async (req, res) => {
   const transaction = await db.sequelize.transaction();
 
   try {
-    // 2️⃣ Validación
-    const invalidos = productos.filter(
-      (p) =>
-        !p.nombre ||
-        p.nombre.length > 255 ||
-        (p.referencia && p.referencia.length > 100),
-    );
-
-    if (invalidos.length) {
-      await transaction.rollback();
-      return res.status(400).json({
-        ok: false,
-        message: "Productos inválidos",
-        ejemplo: invalidos[0],
-      });
-    }
-
     const values = productos.map((p) => [
       p.nombre,
       p.referencia || null,
       empresa_id,
     ]);
-
-    // 🔑 Chunk más pequeño
     const CHUNK_SIZE = 200;
 
     for (let i = 0; i < values.length; i += CHUNK_SIZE) {
       const chunk = values.slice(i, i + CHUNK_SIZE);
-
       await db.sequelize.query(
-        `INSERT INTO productos
-          (nombre, referencia, empresa_id)
-        VALUES ?
-        ON DUPLICATE KEY UPDATE
-          nombre = VALUES(nombre),
-          referencia = VALUES(referencia)`,
-        {
-          replacements: [chunk],
-          transaction,
-        },
+        `INSERT INTO productos (nombre, referencia, empresa_id) VALUES ?
+         ON DUPLICATE KEY UPDATE nombre = VALUES(nombre), referencia = VALUES(referencia)`,
+        { replacements: [chunk], transaction },
       );
     }
-
-    // 3️⃣ Commit final
     await transaction.commit();
-
-    res.json({
-      ok: true,
-      message: "Catálogo cargado correctamente",
-      empresa_id,
-      registros: productos.length,
-    });
+    res.json({ ok: true, registros: productos.length });
   } catch (error) {
     await transaction.rollback();
 
