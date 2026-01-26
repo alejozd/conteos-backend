@@ -12,26 +12,22 @@ const buscar = async (req, res) => {
   try {
     const rows = await db.query(
       `SELECT 
-         p.codigo,
-         p.subcodigo,
+         p.id,         
          p.referencia,
          p.nombre,
          COALESCE(s.saldo, 0) as saldo_sistema
        FROM productos p
        LEFT JOIN saldos_global s 
-         ON s.codigo = p.codigo 
-        AND s.subcodigo = p.subcodigo 
+         ON s.referencia = p.referencia        
         AND s.empresa_id = p.empresa_id
        WHERE p.empresa_id = ?
-         AND (
-           CAST(p.codigo AS CHAR) LIKE ?
-           OR CAST(p.subcodigo AS CHAR) LIKE ?
-           OR UPPER(p.referencia) LIKE ?
+         AND (           
+           UPPER(p.referencia) LIKE ?
            OR UPPER(p.nombre) LIKE ?
          )
-       ORDER BY p.codigo, p.subcodigo
+       ORDER BY p.nombre
        LIMIT 50`,
-      [empresa_id, search, search, search, search]
+      [empresa_id, search, search],
     );
 
     res.json(rows);

@@ -20,38 +20,53 @@ const importarSaldos = async (req, res) => {
   }
 
   try {
-    // Borramos saldos anteriores de la empresa
+    // 1. Obtener catálogo para mapear Referencia -> ID
+    const productos = await db.query(
+      "SELECT id, referencia FROM productos WHERE empresa_id = ?",
+      [empresa_id],
+    );
+
+    const mapaProductos = {};
+    productos.forEach((p) => {
+      mapaProductos[p.referencia] = p.id;
+    });
+
+    // 2. Preparar valores buscando el ID real
+    const values = saldos
+      .map((item) => {
+        const pId = mapaProductos[item.referencia];
+        if (!pId) return null;
+
+        return [pId, parseFloat(item.saldo) || 0, new Date(), empresa_id];
+      })
+      .filter((v) => v !== null);
+
+    if (values.length === 0) {
+      return res.status(400).json({
+        message:
+          "Ninguna referencia de la lista existe en el catálogo de productos",
+      });
+    }
+
+    // 3. Reiniciar saldos e insertar nuevos (dentro de un solo flujo)
     await db.sequelize.query("DELETE FROM saldos_global WHERE empresa_id = ?", {
       replacements: [empresa_id],
     });
 
-    // Preparamos los valores para inserción masiva
-    const values = saldos.map((item) => [
-      item.codigo,
-      item.subcodigo,
-      item.referencia || null,
-      parseFloat(item.saldo) || 0,
-      new Date(),
-      empresa_id,
-    ]);
-
     await db.sequelize.query(
-      `INSERT INTO saldos_global 
-       (codigo, subcodigo, referencia, saldo, fecha_importacion, empresa_id) 
-       VALUES ?`,
-      { replacements: [values] }
+      `INSERT INTO saldos_global (producto_id, saldo, fecha_importacion, empresa_id) VALUES ?`,
+      { replacements: [values] },
     );
 
-    // Emitimos evento para que el frontend admin lo vea en vivo
     const io = req.app.get("io");
     if (io) {
-      io.emit("saldos-actualizados", { empresa_id, total: saldos.length });
+      io.emit("saldos-actualizados", { empresa_id, total: values.length });
     }
 
     res.json({
       message: "Saldos importados correctamente",
       empresa_id,
-      registros: saldos.length,
+      registros: values.length,
       fecha: new Date().toLocaleString("es-CO"),
     });
   } catch (error) {
@@ -81,20 +96,12 @@ const cargarProductos = async (req, res) => {
   const transaction = await db.sequelize.transaction();
 
   try {
-    // 1️⃣ Borrado controlado
-    // await db.sequelize.query("DELETE FROM productos WHERE empresa_id = ?", {
-    //   replacements: [empresa_id],
-    //   transaction,
-    // });
-
     // 2️⃣ Validación
     const invalidos = productos.filter(
       (p) =>
-        !p.codigo ||
-        !p.subcodigo ||
         !p.nombre ||
         p.nombre.length > 255 ||
-        (p.referencia && p.referencia.length > 100)
+        (p.referencia && p.referencia.length > 100),
     );
 
     if (invalidos.length) {
@@ -107,8 +114,6 @@ const cargarProductos = async (req, res) => {
     }
 
     const values = productos.map((p) => [
-      p.codigo,
-      p.subcodigo,
       p.nombre,
       p.referencia || null,
       empresa_id,
@@ -122,7 +127,7 @@ const cargarProductos = async (req, res) => {
 
       await db.sequelize.query(
         `INSERT INTO productos
-          (codigo, subcodigo, nombre, referencia, empresa_id)
+          (nombre, referencia, empresa_id)
         VALUES ?
         ON DUPLICATE KEY UPDATE
           nombre = VALUES(nombre),
@@ -130,7 +135,7 @@ const cargarProductos = async (req, res) => {
         {
           replacements: [chunk],
           transaction,
-        }
+        },
       );
     }
 
@@ -168,9 +173,8 @@ const listarSaldosResumen = async (req, res) => {
   try {
     const rows = await db.query(
       `
-      SELECT
-  p.codigo,
-  p.subcodigo,
+      SELECT  
+  p.id,
   p.nombre,
   p.referencia,
   COALESCE(sg.saldo, 0) AS saldo_sistema,
@@ -178,26 +182,22 @@ const listarSaldosResumen = async (req, res) => {
   COALESCE(sg.saldo, 0) - COALESCE(SUM(c.cantidad), 0) AS diferencia
 FROM productos p
 LEFT JOIN saldos_global sg
-  ON sg.codigo = p.codigo
- AND sg.subcodigo = p.subcodigo
+  ON sg.producto_id = p.id
  AND sg.empresa_id = p.empresa_id
 LEFT JOIN conteos c
-  ON c.codigo = p.codigo
- AND c.subcodigo = p.subcodigo
+  ON c.producto_id = p.id 
  AND c.empresa_id = p.empresa_id
  AND c.estado = 'VIGENTE'
  AND c.conteo_grupo_id = ?
 WHERE p.empresa_id = ?
 GROUP BY
-  p.codigo,
-  p.subcodigo,
   p.nombre,
   p.referencia,
   sg.saldo
 ORDER BY p.nombre;
 
       `,
-      [conteo_grupo_id, empresa_id]
+      [conteo_grupo_id, empresa_id],
     );
 
     res.json(rows);
@@ -208,18 +208,11 @@ ORDER BY p.nombre;
 };
 
 const listarConteosDetalle = async (req, res) => {
-  const { codigo, subcodigo } = req.query;
   const empresa_id = req.user.empresa_id;
-  const { conteo_grupo_id } = req.query;
+  const { conteo_grupo_id, producto_id } = req.query;
 
-  if (!codigo || !subcodigo) {
-    return res
-      .status(400)
-      .json({ message: "Código y subcódigo son obligatorios" });
-  }
-
-  if (!conteo_grupo_id) {
-    return res.status(400).json({ message: "conteo_grupo_id es obligatorio" });
+  if (!conteo_grupo_id || !producto_id) {
+    return res.status(400).json({ message: "Faltan parámetros obligatorios" });
   }
 
   try {
@@ -241,13 +234,12 @@ const listarConteosDetalle = async (req, res) => {
       LEFT JOIN usuarios ua ON ua.id = c.usuario_anula
       LEFT JOIN ubicaciones ub ON ub.id = c.ubicacion_id
       LEFT JOIN bodegas b ON b.id = ub.bodega_id
-      WHERE c.codigo = ?
-        AND c.subcodigo = ?
+      WHERE c.producto_id = ?        
         AND c.empresa_id = ?
         AND c.conteo_grupo_id = ?
       ORDER BY c.timestamp DESC
       `,
-      [codigo, subcodigo, empresa_id, conteo_grupo_id]
+      [referencia, empresa_id, conteo_grupo_id],
     );
 
     res.json(rows);
@@ -291,7 +283,7 @@ const anularConteo = async (req, res) => {
       `,
       {
         replacements: [motivo, usuario_anula, id, empresa_id, conteo_grupo_id],
-      }
+      },
     );
 
     if (result[1] === 0) {
@@ -316,9 +308,7 @@ const getConteosAnulados = async (req, res) => {
       `
       SELECT
         c.id,
-        p.nombre        AS producto,
-        c.codigo,
-        c.subcodigo,
+        p.nombre        AS producto,        
         c.cantidad,
         b.nombre        AS bodega,
         u.nombre        AS ubicacion,
@@ -328,7 +318,7 @@ const getConteosAnulados = async (req, res) => {
         c.timestamp     AS fecha_conteo,
         c.fecha_anulacion
       FROM conteos c
-      LEFT JOIN productos p   ON p.codigo = c.codigo AND p.subcodigo = c.subcodigo
+      LEFT JOIN productos p   ON p.id = c.producto_id
       LEFT JOIN ubicaciones u ON u.id = c.ubicacion_id
       LEFT JOIN bodegas b     ON b.id = u.bodega_id
       LEFT JOIN usuarios uc   ON uc.id = c.usuario_id
@@ -336,7 +326,7 @@ const getConteosAnulados = async (req, res) => {
       WHERE c.estado = 'ANULADO' AND c.empresa_id = ? AND c.conteo_grupo_id = ?
       ORDER BY c.fecha_anulacion DESC
     `,
-      [empresa_id, conteo_grupo_id]
+      [empresa_id, conteo_grupo_id],
     );
 
     res.json(rows);
@@ -351,16 +341,15 @@ const listarProductos = async (req, res) => {
   try {
     const rows = await db.query(
       `
-      SELECT 
-        codigo,
-        subcodigo,
+      SELECT         
+        id,
         nombre,
         referencia        
       FROM productos
       WHERE empresa_id = ?
       ORDER BY nombre
     `,
-      [empresa_id]
+      [empresa_id],
     );
 
     res.json(rows);
@@ -382,7 +371,7 @@ const conteos_stats = async (req, res) => {
       FROM conteos
       WHERE empresa_id = ? AND conteo_grupo_id = ? AND estado = 'VIGENTE'
     `,
-      [empresa_id, conteo_grupo_id]
+      [empresa_id, conteo_grupo_id],
     );
     res.json(rows[0] || { total_registros: 0, total_cantidad: 0 });
   } catch (error) {

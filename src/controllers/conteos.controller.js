@@ -2,15 +2,13 @@
 const db = require("../config/database");
 
 const guardar = async (req, res) => {
-  const { codigo, subcodigo, ubicacion_id, cantidad, conteo_grupo_id } =
-    req.body;
+  const { referencia, ubicacion_id, cantidad, conteo_grupo_id } = req.body;
   const usuario_id = req.user.id;
   const empresa_id = req.user.empresa_id;
 
   // Validaciones
   if (
-    !codigo ||
-    !subcodigo ||
+    !referencia ||
     !ubicacion_id ||
     cantidad === undefined ||
     !conteo_grupo_id
@@ -25,7 +23,7 @@ const guardar = async (req, res) => {
     // NUEVA VALIDACIÓN: ¿El conteo sigue activo?
     const grupoRows = await db.query(
       "SELECT activo, descripcion FROM conteos_grupos WHERE id = ? AND empresa_id = ? LIMIT 1",
-      [conteo_grupo_id, empresa_id]
+      [conteo_grupo_id, empresa_id],
     );
 
     if (grupoRows.length === 0) {
@@ -38,36 +36,32 @@ const guardar = async (req, res) => {
       });
     }
 
-    // Buscamos el producto
+    // Buscamos el referencia
     const rows = await db.query(
-      "SELECT nombre, referencia FROM productos WHERE codigo = ? AND subcodigo = ? AND empresa_id = ? LIMIT 1",
-      [codigo, subcodigo, empresa_id]
+      "SELECT id, nombre, referencia FROM productos WHERE referencia = ? AND empresa_id = ? LIMIT 1",
+      [referencia, empresa_id],
     );
 
-    if (rows.length === 0) {
-      return res
-        .status(404)
-        .json({ message: "Producto no encontrado en catálogo" });
-    }
+    if (rows.length === 0)
+      return res.status(404).json({ message: "Producto no encontrado" });
 
     const producto = rows[0]; // ahora sí es seguro
 
     // Insertamos el conteo
     await db.sequelize.query(
       `INSERT INTO conteos 
-       (conteo_grupo_id, codigo, subcodigo, ubicacion_id, cantidad, usuario_id, empresa_id, timestamp)
-       VALUES (?, ?, ?, ?, ?, ?, ?, NOW())`,
+       (conteo_grupo_id, producto_id, ubicacion_id, cantidad, usuario_id, empresa_id)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
       {
         replacements: [
           conteo_grupo_id,
-          codigo,
-          subcodigo,
+          producto.id,
           ubicacion_id,
           cantidad,
           usuario_id,
           empresa_id,
         ],
-      }
+      },
     );
 
     // Emitimos en vivo
@@ -75,8 +69,6 @@ const guardar = async (req, res) => {
     if (io) {
       io.emit("nuevo-conteo", {
         conteo_grupo_id,
-        codigo,
-        subcodigo,
         referencia: producto.referencia || "",
         nombre: producto.nombre,
         cantidad,
@@ -111,7 +103,7 @@ const listarActivos = async (req, res) => {
        FROM conteos_grupos
        WHERE empresa_id = ? AND activo = 1
        ORDER BY fecha DESC`,
-      [empresa_id]
+      [empresa_id],
     );
 
     res.json(rows);

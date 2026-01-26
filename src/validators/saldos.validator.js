@@ -1,8 +1,8 @@
 const validarSaldo = (row, index) => {
   const fila = index + 2;
 
-  if (!row.CODIGO) {
-    return { fila, campo: "CODIGO", mensaje: "Código obligatorio" };
+  if (!row.REFERENCIA) {
+    return { fila, campo: "REFERENCIA", mensaje: "Referencia obligatoria" };
   }
 
   if (row.SALDO === undefined || row.SALDO === null) {
