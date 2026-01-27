@@ -16,8 +16,17 @@ const verificarToken = (req, res, next) => {
       if (empresaHeader) {
         // Sobreescribimos el empresa_id del token con el del header
         payload.empresa_id = parseInt(empresaHeader);
+      } else {
+        // Si es superadmin pero no ha elegido empresa,
+        // solo puede acceder a rutas de /api/admin/empresas
+        if (!req.path.includes("/admin/empresas")) {
+          return res
+            .status(403)
+            .json({ message: "Superadmin debe seleccionar una empresa" });
+        }
       }
     }
+
     req.user = payload; // { id, username, role, empresa_id }
     next();
   } catch (error) {
