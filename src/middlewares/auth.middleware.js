@@ -10,6 +10,14 @@ const verificarToken = (req, res, next) => {
 
   try {
     const payload = jwt.verify(token, process.env.JWT_SECRET);
+
+    if (payload.role === "superadmin") {
+      const empresaHeader = req.headers["x-empresa-id"];
+      if (empresaHeader) {
+        // Sobreescribimos el empresa_id del token con el del header
+        payload.empresa_id = parseInt(empresaHeader);
+      }
+    }
     req.user = payload; // { id, username, role, empresa_id }
     next();
   } catch (error) {
