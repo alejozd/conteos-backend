@@ -2,17 +2,12 @@
 const db = require("../config/database");
 
 const guardar = async (req, res) => {
-  const { referencia, ubicacion_id, cantidad, conteo_grupo_id } = req.body;
+  const { id, ubicacion_id, cantidad, conteo_grupo_id } = req.body;
   const usuario_id = req.user.id;
   const empresa_id = req.user.empresa_id;
 
   // Validaciones
-  if (
-    !referencia ||
-    !ubicacion_id ||
-    cantidad === undefined ||
-    !conteo_grupo_id
-  ) {
+  if (!id || !ubicacion_id || cantidad === undefined || !conteo_grupo_id) {
     return res.status(400).json({ message: "Faltan datos requeridos" });
   }
   if (isNaN(cantidad) || cantidad < 0) {
@@ -36,10 +31,10 @@ const guardar = async (req, res) => {
       });
     }
 
-    // Buscamos el referencia
+    // Buscamos el id del producto
     const rows = await db.query(
-      "SELECT id, nombre, referencia FROM productos WHERE referencia = ? AND empresa_id = ? LIMIT 1",
-      [referencia, empresa_id],
+      "SELECT id, nombre, referencia FROM productos WHERE id = ? AND empresa_id = ? LIMIT 1",
+      [id, empresa_id],
     );
 
     if (rows.length === 0)
@@ -51,7 +46,7 @@ const guardar = async (req, res) => {
     await db.sequelize.query(
       `INSERT INTO conteos 
        (conteo_grupo_id, producto_id, ubicacion_id, cantidad, usuario_id, empresa_id)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+       VALUES (?, ?, ?, ?, ?, ?)`,
       {
         replacements: [
           conteo_grupo_id,
