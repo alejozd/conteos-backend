@@ -18,7 +18,7 @@ const buscar = async (req, res) => {
          COALESCE(s.saldo, 0) as saldo_sistema
        FROM productos p
        LEFT JOIN saldos_global s 
-         ON s.referencia = p.referencia        
+         ON s.producto_id = p.id
         AND s.empresa_id = p.empresa_id
        WHERE p.empresa_id = ?
          AND (           
