@@ -13,21 +13,26 @@ const verificarToken = (req, res, next) => {
 
     if (payload.role === "superadmin") {
       const empresaHeader = req.headers["x-empresa-id"];
+
       if (empresaHeader) {
-        // Sobreescribimos el empresa_id del token con el del header
         payload.empresa_id = parseInt(empresaHeader);
       } else {
-        // Si es superadmin pero no ha elegido empresa,
-        // solo puede acceder a rutas de /api/admin/empresas
-        if (!req.path.includes("/admin/empresas")) {
-          return res
-            .status(403)
-            .json({ message: "Superadmin debe seleccionar una empresa" });
+        // PERMITIR rutas de empresas si no ha seleccionado una aún
+        // Usamos una expresión regular para ser más precisos
+        const esRutaEmpresas = /\/api\/admin\/empresas/.test(
+          req.originalUrl || req.path,
+        );
+
+        if (!esRutaEmpresas) {
+          return res.status(403).json({
+            message:
+              "Superadmin debe seleccionar una empresa para acceder a este recurso",
+          });
         }
       }
     }
 
-    req.user = payload; // { id, username, role, empresa_id }
+    req.user = payload;
     next();
   } catch (error) {
     return res.status(403).json({ message: "Token inválido o expirado" });
