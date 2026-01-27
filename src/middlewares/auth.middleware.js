@@ -35,11 +35,13 @@ const verificarToken = (req, res, next) => {
 };
 
 const esAdmin = (req, res, next) => {
-  if (req.user.role !== "admin")
+  if (req.user.role === "admin" || req.user.role === "superadmin") {
+    next();
+  } else {
     return res
       .status(403)
-      .json({ message: "Acceso denegado: requiere rol admin" });
-  next();
+      .json({ message: "Acceso denegado: requiere rol administrativo" });
+  }
 };
 
 const esSuperAdmin = (req, res, next) => {
