@@ -13,20 +13,20 @@ app.use(
   cors({
     origin: "*", // después puedes restringir a tu dominio
     credentials: true,
-  })
+  }),
 );
 app.use(express.json({ limit: "10mb" }));
 app.use(
   express.urlencoded({
     extended: true,
     limit: "10mb",
-  })
+  }),
 );
 app.use(morgan("dev"));
 
 // Rutas
 app.use("/api/auth", require("./routes/auth.routes"));
-app.use("/api/empresas", require("./routes/empresas.routes"));
+app.use("/api/admin/empresas", require("./routes/empresas.routes"));
 app.use("/api/productos", require("./routes/productos.routes"));
 app.use("/api/conteos", require("./routes/conteos.routes"));
 app.use("/api/admin", require("./routes/admin.routes"));

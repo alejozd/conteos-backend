@@ -25,4 +25,14 @@ const esAdmin = (req, res, next) => {
   next();
 };
 
-module.exports = { verificarToken, esAdmin };
+const esSuperAdmin = (req, res, next) => {
+  if (req.user && req.user.role === "superadmin") {
+    next();
+  } else {
+    res
+      .status(403)
+      .json({ message: "Acceso denegado: requiere permisos de SuperAdmin" });
+  }
+};
+
+module.exports = { verificarToken, esAdmin, esSuperAdmin };
