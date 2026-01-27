@@ -23,7 +23,7 @@ const importarSaldos = async (req, res) => {
     // 1. Obtener catálogo para mapear Referencia -> ID
     const productos = await db.query(
       "SELECT id, referencia FROM productos WHERE empresa_id = ?",
-      [empresa_id],
+      [empresa_id]
     );
 
     const mapaProductos = {};
@@ -55,7 +55,7 @@ const importarSaldos = async (req, res) => {
 
     await db.sequelize.query(
       `INSERT INTO saldos_global (producto_id, saldo, fecha_importacion, empresa_id) VALUES ?`,
-      { replacements: [values] },
+      { replacements: [values] }
     );
 
     const io = req.app.get("io");
@@ -108,7 +108,7 @@ const cargarProductos = async (req, res) => {
       await db.sequelize.query(
         `INSERT INTO productos (nombre, referencia, empresa_id) VALUES ?
          ON DUPLICATE KEY UPDATE nombre = VALUES(nombre), referencia = VALUES(referencia)`,
-        { replacements: [chunk], transaction },
+        { replacements: [chunk], transaction }
       );
     }
     await transaction.commit();
@@ -163,7 +163,7 @@ GROUP BY
 ORDER BY p.nombre;
 
       `,
-      [conteo_grupo_id, empresa_id],
+      [conteo_grupo_id, empresa_id]
     );
 
     res.json(rows);
@@ -205,7 +205,7 @@ const listarConteosDetalle = async (req, res) => {
         AND c.conteo_grupo_id = ?
       ORDER BY c.timestamp DESC
       `,
-      [referencia, empresa_id, conteo_grupo_id],
+      [producto_id, empresa_id, conteo_grupo_id]
     );
 
     res.json(rows);
@@ -249,7 +249,7 @@ const anularConteo = async (req, res) => {
       `,
       {
         replacements: [motivo, usuario_anula, id, empresa_id, conteo_grupo_id],
-      },
+      }
     );
 
     if (result[1] === 0) {
@@ -292,7 +292,7 @@ const getConteosAnulados = async (req, res) => {
       WHERE c.estado = 'ANULADO' AND c.empresa_id = ? AND c.conteo_grupo_id = ?
       ORDER BY c.fecha_anulacion DESC
     `,
-      [empresa_id, conteo_grupo_id],
+      [empresa_id, conteo_grupo_id]
     );
 
     res.json(rows);
@@ -315,7 +315,7 @@ const listarProductos = async (req, res) => {
       WHERE empresa_id = ?
       ORDER BY nombre
     `,
-      [empresa_id],
+      [empresa_id]
     );
 
     res.json(rows);
@@ -337,7 +337,7 @@ const conteos_stats = async (req, res) => {
       FROM conteos
       WHERE empresa_id = ? AND conteo_grupo_id = ? AND estado = 'VIGENTE'
     `,
-      [empresa_id, conteo_grupo_id],
+      [empresa_id, conteo_grupo_id]
     );
     res.json(rows[0] || { total_registros: 0, total_cantidad: 0 });
   } catch (error) {
