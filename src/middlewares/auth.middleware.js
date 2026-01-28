@@ -50,6 +50,10 @@ const esAdmin = (req, res, next) => {
 };
 
 const esSuperAdmin = (req, res, next) => {
+  console.log(
+    "Rol detectado en backend:",
+    req.user ? req.user.role : "No user",
+  );
   if (req.user && req.user.role === "superadmin") {
     next();
   } else {
