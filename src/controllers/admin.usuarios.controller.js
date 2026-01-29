@@ -28,36 +28,37 @@ exports.listarUsuarios = async (req, res) => {
 // 2️⃣ Crear usuario
 exports.crearUsuario = async (req, res) => {
   try {
+    // 1️⃣ Recibimos empresa_id desde el cuerpo de la petición (Frontend)
     const { username, password, role, empresa_id } = req.body;
     const empresa_id_admin = req.user.empresa_id;
 
-    // ... (validaciones de campos vacíos y roles se mantienen igual) ...
-
+    // 2️⃣ Lógica de decisión de Empresa:
+    // Si el usuario logueado es superadmin, usamos el empresa_id que envió.
+    // Si no es superadmin (o no envió uno), usamos la empresa del admin (herencia).
     const empresaAsignada =
       req.user.role === "superadmin" && empresa_id
         ? empresa_id
         : empresa_id_admin;
 
-    // 2️⃣ Verificar username único SOLO dentro de esta empresa
+    // Verificación de username único (Filtro por empresa asignada)
     const existing = await db.query(
       "SELECT id FROM usuarios WHERE username = ? AND empresa_id = ?",
-      [username, empresa_id_admin], // Filtro por empresa añadido
+      [username, empresaAsignada],
     );
 
     if (existing.length > 0) {
       return res.status(409).json({
-        message: "El nombre de usuario ya está en uso en su empresa",
+        message: "El nombre de usuario ya está en uso en esa empresa",
       });
     }
 
-    // 3️⃣ Encriptar password
     const passwordHash = await bcrypt.hash(password, 10);
 
-    // 4️⃣ Insertar usuario heredando la empresa del administrador logueado
+    // 3️⃣ Insertamos usando la empresaAsignada calculada
     await db.query(
       `INSERT INTO usuarios (username, password, role, empresa_id, activo)
        VALUES (?, ?, ?, ?, 1)`,
-      [username, passwordHash, role, empresa_id_admin],
+      [username, passwordHash, role, empresaAsignada],
     );
 
     res.status(201).json({ message: "Usuario creado correctamente" });
