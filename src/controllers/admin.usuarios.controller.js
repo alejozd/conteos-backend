@@ -4,21 +4,21 @@ const db = require("../config/database"); // usa el mismo pool/conexión que ya 
 // 1️⃣ Listar usuarios
 exports.listarUsuarios = async (req, res) => {
   try {
-    const empresa_id = req.user.empresa_id; // Obtenido del token
-
-    const rows = await db.query(
-      `
-      SELECT 
-        u.id, u.username, u.role, u.activo, u.empresa_id,
-        e.nombre AS empresa
+    let query = `
+      SELECT u.id, u.username, u.role, u.activo, u.empresa_id, e.nombre AS empresa
       FROM usuarios u
       LEFT JOIN empresas e ON e.id = u.empresa_id
-      WHERE u.empresa_id = ? -- Filtro crítico
-      ORDER BY u.username
-    `,
-      [empresa_id]
-    );
+    `;
+    let params = [];
 
+    // Si NO es superadmin, filtramos para que solo vea los de su empresa
+    if (req.user.role !== "superadmin") {
+      query += " WHERE u.empresa_id = ?";
+      params.push(req.user.empresa_id);
+    }
+
+    query += " ORDER BY u.username";
+    const rows = await db.query(query, params);
     res.json(rows);
   } catch (error) {
     res.status(500).json({ message: "Error listando usuarios" });
@@ -28,15 +28,20 @@ exports.listarUsuarios = async (req, res) => {
 // 2️⃣ Crear usuario
 exports.crearUsuario = async (req, res) => {
   try {
-    const { username, password, role } = req.body;
+    const { username, password, role, empresa_id } = req.body;
     const empresa_id_admin = req.user.empresa_id;
 
     // ... (validaciones de campos vacíos y roles se mantienen igual) ...
 
+    const empresaAsignada =
+      req.user.role === "superadmin" && empresa_id
+        ? empresa_id
+        : empresa_id_admin;
+
     // 2️⃣ Verificar username único SOLO dentro de esta empresa
     const existing = await db.query(
       "SELECT id FROM usuarios WHERE username = ? AND empresa_id = ?",
-      [username, empresa_id_admin] // Filtro por empresa añadido
+      [username, empresa_id_admin], // Filtro por empresa añadido
     );
 
     if (existing.length > 0) {
@@ -52,7 +57,7 @@ exports.crearUsuario = async (req, res) => {
     await db.query(
       `INSERT INTO usuarios (username, password, role, empresa_id, activo)
        VALUES (?, ?, ?, ?, 1)`,
-      [username, passwordHash, role, empresa_id_admin]
+      [username, passwordHash, role, empresa_id_admin],
     );
 
     res.status(201).json({ message: "Usuario creado correctamente" });
@@ -70,7 +75,7 @@ exports.actualizarUsuario = async (req, res) => {
   try {
     const rows = await db.query(
       "SELECT id, username FROM usuarios WHERE id = ?",
-      [id]
+      [id],
     );
 
     const user = rows[0];
@@ -115,7 +120,7 @@ exports.actualizarUsuario = async (req, res) => {
 
     await db.query(
       `UPDATE usuarios SET ${fields.join(", ")} WHERE id = ?`,
-      values
+      values,
     );
 
     res.json({ message: "Usuario actualizado correctamente" });
