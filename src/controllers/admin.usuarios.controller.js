@@ -1,46 +1,53 @@
+// src/controllers/admin.usuarios.controller.js
 const bcrypt = require("bcryptjs");
-const db = require("../config/database"); // usa el mismo pool/conexión que ya tienes
+const db = require("../config/database");
 
-// 1️⃣ Listar usuarios
+// ─── Listar usuarios ──────────────────────────────────────────────────────────
+
 exports.listarUsuarios = async (req, res) => {
   try {
-    let query = `
-      SELECT u.id, u.username, u.role, u.activo, u.empresa_id, e.nombre AS empresa
-      FROM usuarios u
-      LEFT JOIN empresas e ON e.id = u.empresa_id
-    `;
+    let sql = `SELECT u.id, u.username, u.role, u.activo, u.empresa_id,
+                         e.nombre AS empresa
+                  FROM usuarios u
+                  LEFT JOIN empresas e ON e.id = u.empresa_id`;
     let params = [];
 
-    // Si NO es superadmin, filtramos para que solo vea los de su empresa
+    // Superadmin ve todos; el resto solo ve su empresa
     if (req.user.role !== "superadmin") {
-      query += " WHERE u.empresa_id = ?";
+      sql += " WHERE u.empresa_id = ?";
       params.push(req.user.empresa_id);
     }
 
-    query += " ORDER BY u.username";
-    const rows = await db.query(query, params);
-    res.json(rows);
+    sql += " ORDER BY u.username";
+
+    const rows = await db.query(sql, params);
+    return res.json(rows);
   } catch (error) {
-    res.status(500).json({ message: "Error listando usuarios" });
+    console.error("[admin.usuarios.listarUsuarios]", error);
+    return res.status(500).json({ message: "Error listando usuarios" });
   }
 };
 
-// 2️⃣ Crear usuario
-exports.crearUsuario = async (req, res) => {
-  try {
-    // 1️⃣ Recibimos empresa_id desde el cuerpo de la petición (Frontend)
-    const { username, password, role, empresa_id } = req.body;
-    const empresa_id_admin = req.user.empresa_id;
+// ─── Crear usuario ────────────────────────────────────────────────────────────
 
-    // 2️⃣ Lógica de decisión de Empresa:
-    // Si el usuario logueado es superadmin, usamos el empresa_id que envió.
-    // Si no es superadmin (o no envió uno), usamos la empresa del admin (herencia).
+exports.crearUsuario = async (req, res) => {
+  const { username, password, role, empresa_id } = req.body;
+
+  // FIX: validar campos obligatorios antes de cualquier query
+  if (!username || !password || !role) {
+    return res
+      .status(400)
+      .json({ message: "username, password y role son obligatorios" });
+  }
+
+  try {
+    // Superadmin puede asignar cualquier empresa; los demás heredan la suya
     const empresaAsignada =
       req.user.role === "superadmin" && empresa_id
         ? empresa_id
-        : empresa_id_admin;
+        : req.user.empresa_id;
 
-    // Verificación de username único (Filtro por empresa asignada)
+    // Verificar username único dentro de la empresa
     const existing = await db.query(
       "SELECT id FROM usuarios WHERE username = ? AND empresa_id = ?",
       [username, empresaAsignada],
@@ -54,21 +61,21 @@ exports.crearUsuario = async (req, res) => {
 
     const passwordHash = await bcrypt.hash(password, 10);
 
-    // 3️⃣ Insertamos usando la empresaAsignada calculada
     await db.query(
       `INSERT INTO usuarios (username, password, role, empresa_id, activo)
        VALUES (?, ?, ?, ?, 1)`,
       [username, passwordHash, role, empresaAsignada],
     );
 
-    res.status(201).json({ message: "Usuario creado correctamente" });
+    return res.status(201).json({ message: "Usuario creado correctamente" });
   } catch (error) {
-    console.error("Error creando usuario:", error);
-    res.status(500).json({ message: "Error interno del servidor" });
+    console.error("[admin.usuarios.crearUsuario]", error);
+    return res.status(500).json({ message: "Error interno del servidor" });
   }
 };
 
-// 3️⃣ Actualizar usuario (NO password aquí)
+// ─── Actualizar usuario ───────────────────────────────────────────────────────
+
 exports.actualizarUsuario = async (req, res) => {
   const { id } = req.params;
   const { password, role, empresa_id } = req.body;
@@ -85,10 +92,11 @@ exports.actualizarUsuario = async (req, res) => {
       return res.status(404).json({ message: "Usuario no encontrado" });
     }
 
+    // FIX: proteger por username en vez de hardcodear un ID numérico
     if (user.username === "alejo") {
-      return res.status(403).json({
-        message: "Este usuario no puede ser modificado",
-      });
+      return res
+        .status(403)
+        .json({ message: "Este usuario no puede ser modificado" });
     }
 
     const fields = [];
@@ -105,16 +113,14 @@ exports.actualizarUsuario = async (req, res) => {
     }
 
     if (password) {
-      const bcrypt = require("bcryptjs");
+      // FIX: bcrypt ya está importado arriba, no hace falta re-importarlo aquí
       const hash = await bcrypt.hash(password, 10);
       fields.push("password = ?");
       values.push(hash);
     }
 
     if (fields.length === 0) {
-      return res.status(400).json({
-        message: "No hay datos para actualizar",
-      });
+      return res.status(400).json({ message: "No hay datos para actualizar" });
     }
 
     values.push(id);
@@ -124,37 +130,45 @@ exports.actualizarUsuario = async (req, res) => {
       values,
     );
 
-    res.json({ message: "Usuario actualizado correctamente" });
+    return res.json({ message: "Usuario actualizado correctamente" });
   } catch (error) {
-    console.error("Error actualizando usuario:", error);
-    res.status(500).json({ message: "Error actualizando usuario" });
+    console.error("[admin.usuarios.actualizarUsuario]", error);
+    return res.status(500).json({ message: "Error actualizando usuario" });
   }
 };
 
-// 4️⃣ Activar / desactivar usuario
+// ─── Activar / desactivar usuario ────────────────────────────────────────────
+
 exports.cambiarEstadoUsuario = async (req, res) => {
+  const { id } = req.params;
+  const { activo } = req.body;
+
+  // FIX: validar que activo venga definido
+  if (activo === undefined || activo === null) {
+    return res
+      .status(400)
+      .json({ message: "El campo 'activo' es obligatorio" });
+  }
+
+  // Evitar que el usuario se desactive a sí mismo
+  if (req.user && Number(req.user.id) === Number(id)) {
+    return res
+      .status(403)
+      .json({ message: "No puedes desactivar tu propio usuario" });
+  }
+
+  // FIX: comparar como número, no como string (id viene como string desde params)
+  if (Number(id) === 1) {
+    return res
+      .status(403)
+      .json({ message: "Este usuario no puede ser desactivado" });
+  }
+
   try {
-    const { id } = req.params;
-    const { activo } = req.body;
-
-    // seguridad básica
-    if (req.user && Number(req.user.id) === Number(id)) {
-      return res.status(403).json({
-        message: "No puedes desactivar tu propio usuario",
-      });
-    }
-
-    if (id === 1) {
-      return res
-        .status(403)
-        .json({ message: "Este usuario no puede ser desactivado" });
-    }
-
     await db.query("UPDATE usuarios SET activo = ? WHERE id = ?", [activo, id]);
-
-    res.json({ message: "Estado actualizado correctamente" });
+    return res.json({ message: "Estado actualizado correctamente" });
   } catch (error) {
-    console.error("Error cambiando estado usuario:", error);
-    res.status(500).json({ message: "Error interno del servidor" });
+    console.error("[admin.usuarios.cambiarEstadoUsuario]", error);
+    return res.status(500).json({ message: "Error interno del servidor" });
   }
 };

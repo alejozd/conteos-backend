@@ -1,7 +1,8 @@
+// src/controllers/bodegas.controller.js
 const db = require("../config/database");
 
 const listar = async (req, res) => {
-  const empresa_id = req.user.empresa_id;
+  const { empresa_id } = req.user;
 
   try {
     const rows = await db.query(
@@ -9,13 +10,14 @@ const listar = async (req, res) => {
        FROM bodegas
        WHERE empresa_id = ?
        ORDER BY nombre ASC`,
-      [empresa_id]
+      [empresa_id],
     );
 
-    res.json(rows);
+    return res.json(rows);
   } catch (error) {
-    console.error("Error listando bodegas:", error.message);
-    res.status(500).json({ message: "Error al cargar bodegas" });
+    // FIX: log completo del error, no solo error.message
+    console.error("[bodegas.listar]", error);
+    return res.status(500).json({ message: "Error al cargar bodegas" });
   }
 };
 
