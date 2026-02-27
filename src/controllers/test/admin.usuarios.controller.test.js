@@ -276,13 +276,13 @@ describe("actualizarUsuario", () => {
 
     const req = makeReq({
       params: { id: "2" },
-      body: { password: "nueva123" },
+      body: { password: "DUMMY_PASSWORD" },
     });
     const res = makeRes();
 
     await actualizarUsuario(req, res);
 
-    expect(bcrypt.hash).toHaveBeenCalledWith("nueva123", 10);
+    expect(bcrypt.hash).toHaveBeenCalledWith("DUMMY_PASSWORD", 10);
     expect(res.json).toHaveBeenCalledWith(
       expect.objectContaining({ message: "Usuario actualizado correctamente" }),
     );
