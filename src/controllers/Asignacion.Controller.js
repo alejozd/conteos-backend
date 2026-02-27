@@ -16,14 +16,15 @@ const AsignacionController = {
                 a.ubicacion_id,
                 u.nombre as ubicacion_nombre,
                 u.bodega_id,
-                b.nombre as bodega_nombre
+                b.nombre as bodega_nombre,
+                g.fecha
             FROM conteos_asignaciones a
             INNER JOIN conteos_grupos g ON a.conteo_grupo_id = g.id
             INNER JOIN ubicaciones u ON a.ubicacion_id = u.id
             INNER JOIN bodegas b ON u.bodega_id = b.id
             WHERE a.usuario_id = ? AND a.estado = 0 AND g.activo = 1
             LIMIT 1`,
-        [usuarioId]
+        [usuarioId],
       );
 
       // Si rows es nulo o vacío
@@ -58,7 +59,7 @@ const AsignacionController = {
 
       await db.query(
         "INSERT INTO conteos_asignaciones (usuario_id, conteo_grupo_id, ubicacion_id, empresa_id, estado) VALUES ?",
-        [values]
+        [values],
       );
 
       res.json({
@@ -83,7 +84,7 @@ const AsignacionController = {
        INNER JOIN ubicaciones u ON a.ubicacion_id = u.id
        INNER JOIN bodegas b ON u.bodega_id = b.id
        WHERE a.usuario_id = ? AND a.estado = 0`,
-        [usuarioId]
+        [usuarioId],
       );
       res.json(rows);
     } catch (error) {
@@ -106,7 +107,7 @@ const AsignacionController = {
             WHERE a.usuario_id = ? 
               AND u.bodega_id = ? 
               AND a.estado = 0`,
-        [usuarioId, bodegaId]
+        [usuarioId, bodegaId],
       );
 
       res.json(rows);
@@ -125,7 +126,7 @@ const AsignacionController = {
     try {
       await db.query(
         `UPDATE conteos_asignaciones SET estado = 1 WHERE id = ?`,
-        [asignacion_id]
+        [asignacion_id],
       );
       res.json({
         message: "Asignación marcada como finalizada por el administrador",
@@ -166,7 +167,7 @@ const AsignacionController = {
     try {
       await db.query(
         "UPDATE conteos_asignaciones SET estado = ? WHERE id = ?",
-        [nuevoEstado, id]
+        [nuevoEstado, id],
       );
       res.json({ message: "Estado de asignación actualizado" });
     } catch (error) {
@@ -229,7 +230,7 @@ const AsignacionController = {
        FROM conteos_asignaciones a
        INNER JOIN ubicaciones u ON a.ubicacion_id = u.id
        WHERE a.usuario_id = ? AND u.bodega_id = ? AND a.estado = 0`,
-        [usuarioId, bodegaId]
+        [usuarioId, bodegaId],
       );
       res.json(rows);
     } catch (error) {
@@ -249,7 +250,7 @@ const AsignacionController = {
        INNER JOIN bodegas b ON u.bodega_id = b.id
        WHERE a.usuario_id = ? AND a.conteo_grupo_id = ? AND a.estado = 0
        GROUP BY b.id, b.nombre`,
-        [usuarioId, grupoId]
+        [usuarioId, grupoId],
       );
       res.json(rows);
     } catch (error) {
@@ -276,7 +277,7 @@ const AsignacionController = {
                AND ca.estado = 0 
                AND ca.empresa_id = ?
              LIMIT 1`,
-        [usuario_id, conteo_grupo_id, empresa_id]
+        [usuario_id, conteo_grupo_id, empresa_id],
       );
 
       // LÓGICA DE DETECCIÓN DINÁMICA:
@@ -298,7 +299,7 @@ const AsignacionController = {
         const nombreGrupo = rows[0].descripcion;
         console.log(
           "!!! BLOQUEO ACTIVADO !!! Conflicto detectado con:",
-          nombreGrupo
+          nombreGrupo,
         );
 
         return res.status(400).json({
@@ -318,7 +319,7 @@ const AsignacionController = {
                AND u.bodega_id = ? 
                AND a.conteo_grupo_id = ?
                AND a.estado = 0`,
-        [usuario_id, bodega_id, conteo_grupo_id]
+        [usuario_id, bodega_id, conteo_grupo_id],
       );
 
       if (ubicaciones && ubicaciones.length > 0) {
@@ -332,7 +333,7 @@ const AsignacionController = {
 
         await db.query(
           "INSERT INTO conteos_asignaciones (usuario_id, conteo_grupo_id, ubicacion_id, empresa_id, estado) VALUES ?",
-          [values]
+          [values],
         );
       }
 
