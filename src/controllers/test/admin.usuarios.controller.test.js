@@ -6,7 +6,7 @@
 jest.mock("../../config/database", () => ({ query: jest.fn() }));
 jest.mock("bcryptjs");
 
-const db     = require("../../config/database");
+const db = require("../../config/database");
 const bcrypt = require("bcryptjs");
 
 const {
@@ -19,17 +19,17 @@ const {
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 const makeRes = () => {
-  const res  = {};
+  const res = {};
   res.status = jest.fn().mockReturnValue(res);
-  res.json   = jest.fn().mockReturnValue(res);
+  res.json = jest.fn().mockReturnValue(res);
   return res;
 };
 
 const makeReq = (overrides = {}) => ({
   params: {},
-  body:   {},
-  query:  {},
-  user:   { id: 99, role: "admin", empresa_id: 1 },
+  body: {},
+  query: {},
+  user: { id: 99, role: "admin", empresa_id: 1 },
   ...overrides,
 });
 
@@ -46,12 +46,14 @@ beforeEach(() => {
 describe("listarUsuarios", () => {
   test("superadmin recibe todos los usuarios sin filtro de empresa", async () => {
     const mockRows = [
-      { id: 1, username: "alejo",  role: "superadmin", empresa_id: null },
-      { id: 2, username: "carlos", role: "admin",      empresa_id: 1    },
+      { id: 1, username: "alejo", role: "superadmin", empresa_id: null },
+      { id: 2, username: "carlos", role: "admin", empresa_id: 1 },
     ];
     db.query.mockResolvedValueOnce(mockRows);
 
-    const req = makeReq({ user: { id: 1, role: "superadmin", empresa_id: null } });
+    const req = makeReq({
+      user: { id: 1, role: "superadmin", empresa_id: null },
+    });
     const res = makeRes();
 
     await listarUsuarios(req, res);
@@ -102,7 +104,9 @@ describe("crearUsuario", () => {
 
     expect(res.status).toHaveBeenCalledWith(400);
     expect(res.json).toHaveBeenCalledWith(
-      expect.objectContaining({ message: expect.stringContaining("obligatorios") }),
+      expect.objectContaining({
+        message: expect.stringContaining("obligatorios"),
+      }),
     );
   });
 
@@ -127,23 +131,27 @@ describe("crearUsuario", () => {
   test("409 si el username ya existe en la empresa", async () => {
     db.query.mockResolvedValueOnce([{ id: 5 }]); // ya existe
 
-    const req = makeReq({ body: { username: "juan", password: "123", role: "user" } });
+    const req = makeReq({
+      body: { username: "juan", password: "123", role: "user" },
+    });
     const res = makeRes();
 
     await crearUsuario(req, res);
 
     expect(res.status).toHaveBeenCalledWith(409);
     expect(res.json).toHaveBeenCalledWith(
-      expect.objectContaining({ message: expect.stringContaining("ya está en uso") }),
+      expect.objectContaining({
+        message: expect.stringContaining("ya está en uso"),
+      }),
     );
   });
 
   test("crea usuario correctamente con empresa heredada del admin", async () => {
     db.query
-      .mockResolvedValueOnce([])           // SELECT → no existe
-      .mockResolvedValueOnce([]);           // INSERT OK
+      .mockResolvedValueOnce([]) // SELECT → no existe
+      .mockResolvedValueOnce([]); // INSERT OK
 
-    bcrypt.hash.mockResolvedValueOnce("hashed_password");
+    bcrypt.hash.mockResolvedValueOnce("HASHED_DUMMY_PASSWORD");
 
     const req = makeReq({
       user: { id: 99, role: "admin", empresa_id: 1 },
@@ -161,15 +169,18 @@ describe("crearUsuario", () => {
   });
 
   test("superadmin puede asignar empresa_id distinta", async () => {
-    db.query
-      .mockResolvedValueOnce([])
-      .mockResolvedValueOnce([]);
+    db.query.mockResolvedValueOnce([]).mockResolvedValueOnce([]);
 
-    bcrypt.hash.mockResolvedValueOnce("hashed_password");
+    bcrypt.hash.mockResolvedValueOnce("HASHED_DUMMY_PASSWORD");
 
     const req = makeReq({
       user: { id: 1, role: "superadmin", empresa_id: null },
-      body: { username: "nuevo", password: "123", role: "admin", empresa_id: 5 },
+      body: {
+        username: "nuevo",
+        password: "123",
+        role: "admin",
+        empresa_id: 5,
+      },
     });
     const res = makeRes();
 
@@ -184,7 +195,9 @@ describe("crearUsuario", () => {
   test("retorna 500 si falla la query", async () => {
     db.query.mockRejectedValueOnce(new Error("DB error"));
 
-    const req = makeReq({ body: { username: "nuevo", password: "123", role: "user" } });
+    const req = makeReq({
+      body: { username: "nuevo", password: "123", role: "user" },
+    });
     const res = makeRes();
 
     await crearUsuario(req, res);
@@ -219,7 +232,9 @@ describe("actualizarUsuario", () => {
 
     expect(res.status).toHaveBeenCalledWith(403);
     expect(res.json).toHaveBeenCalledWith(
-      expect.objectContaining({ message: expect.stringContaining("no puede ser modificado") }),
+      expect.objectContaining({
+        message: expect.stringContaining("no puede ser modificado"),
+      }),
     );
   });
 
@@ -240,7 +255,7 @@ describe("actualizarUsuario", () => {
   test("actualiza role correctamente", async () => {
     db.query
       .mockResolvedValueOnce([{ id: 2, username: "carlos" }]) // SELECT
-      .mockResolvedValueOnce([]);                              // UPDATE
+      .mockResolvedValueOnce([]); // UPDATE
 
     const req = makeReq({ params: { id: "2" }, body: { role: "admin" } });
     const res = makeRes();
@@ -259,7 +274,10 @@ describe("actualizarUsuario", () => {
 
     bcrypt.hash.mockResolvedValueOnce("nuevo_hash");
 
-    const req = makeReq({ params: { id: "2" }, body: { password: "nueva123" } });
+    const req = makeReq({
+      params: { id: "2" },
+      body: { password: "nueva123" },
+    });
     const res = makeRes();
 
     await actualizarUsuario(req, res);
@@ -302,8 +320,8 @@ describe("cambiarEstadoUsuario", () => {
   test("403 si el usuario intenta desactivarse a sí mismo", async () => {
     const req = makeReq({
       params: { id: "99" },
-      body:   { activo: 0 },
-      user:   { id: 99, role: "admin", empresa_id: 1 },
+      body: { activo: 0 },
+      user: { id: 99, role: "admin", empresa_id: 1 },
     });
     const res = makeRes();
 
@@ -311,15 +329,17 @@ describe("cambiarEstadoUsuario", () => {
 
     expect(res.status).toHaveBeenCalledWith(403);
     expect(res.json).toHaveBeenCalledWith(
-      expect.objectContaining({ message: expect.stringContaining("propio usuario") }),
+      expect.objectContaining({
+        message: expect.stringContaining("propio usuario"),
+      }),
     );
   });
 
   test("403 si intenta modificar al usuario con id 1", async () => {
     const req = makeReq({
       params: { id: "1" },
-      body:   { activo: 0 },
-      user:   { id: 99, role: "admin", empresa_id: 1 },
+      body: { activo: 0 },
+      user: { id: 99, role: "admin", empresa_id: 1 },
     });
     const res = makeRes();
 
@@ -327,7 +347,9 @@ describe("cambiarEstadoUsuario", () => {
 
     expect(res.status).toHaveBeenCalledWith(403);
     expect(res.json).toHaveBeenCalledWith(
-      expect.objectContaining({ message: expect.stringContaining("no puede ser desactivado") }),
+      expect.objectContaining({
+        message: expect.stringContaining("no puede ser desactivado"),
+      }),
     );
   });
 
@@ -336,8 +358,8 @@ describe("cambiarEstadoUsuario", () => {
 
     const req = makeReq({
       params: { id: "5" },
-      body:   { activo: 0 },
-      user:   { id: 99, role: "admin", empresa_id: 1 },
+      body: { activo: 0 },
+      user: { id: 99, role: "admin", empresa_id: 1 },
     });
     const res = makeRes();
 
@@ -357,7 +379,7 @@ describe("cambiarEstadoUsuario", () => {
 
     const req = makeReq({
       params: { id: "5" },
-      body:   { activo: 1 },
+      body: { activo: 1 },
     });
     const res = makeRes();
 
@@ -377,7 +399,7 @@ describe("cambiarEstadoUsuario", () => {
 
     const req = makeReq({
       params: { id: "5" },
-      body:   { activo: 0 },
+      body: { activo: 0 },
     });
     const res = makeRes();
 

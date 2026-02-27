@@ -6,7 +6,7 @@ jest.mock("bcryptjs");
 jest.mock("jsonwebtoken");
 
 // El módulo lanza error si JWT_SECRET no existe, lo seteamos antes de importar
-process.env.JWT_SECRET = "test_secret";
+process.env.JWT_SECRET = "DUMMY_FOR_TESTS";
 process.env.JWT_EXPIRES_IN = "8h";
 
 const db = require("../../config/database");
