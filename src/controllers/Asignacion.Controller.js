@@ -9,21 +9,21 @@ const AsignacionController = {
 
     try {
       const rows = await db.query(
-        `SELECT
-            a.id                  AS asignacion_id,
-            a.conteo_grupo_id,
-            g.descripcion         AS grupo_nombre,
-            a.ubicacion_id,
-            u.nombre              AS ubicacion_nombre,
-            u.bodega_id,
-            b.nombre              AS bodega_nombre,
-            g.fecha
-         FROM conteos_asignaciones a
-         INNER JOIN conteos_grupos g ON a.conteo_grupo_id = g.id
-         INNER JOIN ubicaciones    u ON a.ubicacion_id    = u.id
-         INNER JOIN bodegas        b ON u.bodega_id       = b.id
-         WHERE a.usuario_id = ? AND a.estado = 0 AND g.activo = 1
-         LIMIT 1`,
+        `SELECT 
+                a.id as asignacion_id,
+                a.conteo_grupo_id,
+                g.descripcion as grupo_nombre,
+                a.ubicacion_id,
+                u.nombre as ubicacion_nombre,
+                u.bodega_id,
+                b.nombre as bodega_nombre,
+                g.fecha
+            FROM conteos_asignaciones a
+            INNER JOIN conteos_grupos g ON a.conteo_grupo_id = g.id
+            INNER JOIN ubicaciones u ON a.ubicacion_id = u.id
+            INNER JOIN bodegas b ON u.bodega_id = b.id
+            WHERE a.usuario_id = ? AND a.estado = 0 AND g.activo = 1
+            LIMIT 1`,
         [usuarioId],
       );
 
@@ -92,11 +92,13 @@ const AsignacionController = {
 
     try {
       const rows = await db.query(
-        `SELECT DISTINCT b.id, b.nombre
-         FROM conteos_asignaciones a
-         INNER JOIN ubicaciones u ON a.ubicacion_id = u.id
-         INNER JOIN bodegas     b ON u.bodega_id    = b.id
-         WHERE a.usuario_id = ? AND a.estado = 0`,
+        `SELECT DISTINCT 
+          b.id, 
+          b.nombre 
+       FROM conteos_asignaciones a
+       INNER JOIN ubicaciones u ON a.ubicacion_id = u.id
+       INNER JOIN bodegas b ON u.bodega_id = b.id
+       WHERE a.usuario_id = ? AND a.estado = 0`,
         [usuarioId],
       );
 
@@ -120,10 +122,14 @@ const AsignacionController = {
 
     try {
       const rows = await db.query(
-        `SELECT u.id, u.nombre
-         FROM conteos_asignaciones a
-         INNER JOIN ubicaciones u ON a.ubicacion_id = u.id
-         WHERE a.usuario_id = ? AND u.bodega_id = ? AND a.estado = 0`,
+        `SELECT 
+                u.id, 
+                u.nombre 
+            FROM conteos_asignaciones a
+            INNER JOIN ubicaciones u ON a.ubicacion_id = u.id
+            WHERE a.usuario_id = ? 
+              AND u.bodega_id = ? 
+              AND a.estado = 0`,
         [usuarioId, bodegaId],
       );
 
@@ -143,7 +149,7 @@ const AsignacionController = {
 
     try {
       await db.query(
-        "UPDATE conteos_asignaciones SET estado = 1 WHERE id = ?",
+        `UPDATE conteos_asignaciones SET estado = 1 WHERE id = ?`,
         [asignacion_id],
       );
 
@@ -262,10 +268,10 @@ const AsignacionController = {
 
     try {
       const rows = await db.query(
-        `SELECT u.id, u.nombre
-         FROM conteos_asignaciones a
-         INNER JOIN ubicaciones u ON a.ubicacion_id = u.id
-         WHERE a.usuario_id = ? AND u.bodega_id = ? AND a.estado = 0`,
+        `SELECT u.id, u.nombre 
+       FROM conteos_asignaciones a
+       INNER JOIN ubicaciones u ON a.ubicacion_id = u.id
+       WHERE a.usuario_id = ? AND u.bodega_id = ? AND a.estado = 0`,
         [usuarioId, bodegaId],
       );
 
@@ -289,14 +295,14 @@ const AsignacionController = {
 
     try {
       const rows = await db.query(
-        `SELECT
-            b.nombre              AS bodega_nombre,
-            COUNT(a.ubicacion_id) AS total_ubicaciones
-         FROM conteos_asignaciones a
-         INNER JOIN ubicaciones u ON a.ubicacion_id = u.id
-         INNER JOIN bodegas     b ON u.bodega_id    = b.id
-         WHERE a.usuario_id = ? AND a.conteo_grupo_id = ? AND a.estado = 0
-         GROUP BY b.id, b.nombre`,
+        `SELECT 
+          b.nombre as bodega_nombre, 
+          COUNT(a.ubicacion_id) as total_ubicaciones
+       FROM conteos_asignaciones a
+       INNER JOIN ubicaciones u ON a.ubicacion_id = u.id
+       INNER JOIN bodegas b ON u.bodega_id = b.id
+       WHERE a.usuario_id = ? AND a.conteo_grupo_id = ? AND a.estado = 0
+       GROUP BY b.id, b.nombre`,
         [usuarioId, grupoId],
       );
 
@@ -324,22 +330,41 @@ const AsignacionController = {
     const transaction = await db.sequelize.transaction();
 
     try {
-      // 1. Verificar conflicto: usuario con tareas en otro grupo activo
-      // FIX: db.query() devuelve rows directamente — sin lógica extra de detección
-      const conflicto = await db.query(
-        `SELECT cg.descripcion
-         FROM conteos_asignaciones ca
-         JOIN conteos_grupos cg ON ca.conteo_grupo_id = cg.id
-         WHERE ca.usuario_id        = ?
-           AND ca.conteo_grupo_id  <> ?
-           AND ca.estado            = 0
-           AND ca.empresa_id        = ?
-         LIMIT 1`,
+      // 1. VALIDACIÓN SIN DESESTRUCTURAR PARA ANALIZAR EL OBJETO
+      const result = await db.query(
+        `SELECT cg.descripcion 
+             FROM conteos_asignaciones ca
+             JOIN conteos_grupos cg ON ca.conteo_grupo_id = cg.id
+             WHERE ca.usuario_id = ? 
+               AND ca.conteo_grupo_id <> ? 
+               AND ca.estado = 0 
+               AND ca.empresa_id = ?
+             LIMIT 1`,
         [usuario_id, conteo_grupo_id, empresa_id],
       );
 
-      if (conflicto.length > 0) {
-        await transaction.rollback();
+      // LÓGICA DE DETECCIÓN DINÁMICA:
+      // Algunos drivers devuelven [rows, fields], otros solo rows.
+      let rows = [];
+      if (Array.isArray(result)) {
+        // Si el primer elemento es un array, son las filas (mysql2 estándar)
+        // Si el primer elemento es un objeto, result mismo son las filas (mysql estándar)
+        rows = Array.isArray(result[0]) ? result[0] : result;
+      } else if (result && result.rows) {
+        rows = result.rows; // Para drivers tipo pg o wrappers específicos
+      }
+
+      console.log("Trace de Filas:", rows);
+
+      // Verificamos si encontramos al menos un registro
+      if (rows && rows.length > 0) {
+        // Extraemos la descripción de la primera fila encontrada
+        const nombreGrupo = rows[0].descripcion;
+        console.log(
+          "!!! BLOQUEO ACTIVADO !!! Conflicto detectado con:",
+          nombreGrupo,
+        );
+
         return res.status(400).json({
           message: `BLOQUEADO: El usuario ya tiene tareas pendientes en el grupo "${conflicto[0].descripcion}". Debe finalizarlas antes de cambiar de grupo.`,
         });
@@ -348,12 +373,12 @@ const AsignacionController = {
       // 2. Eliminar asignaciones anteriores de esa bodega en ese grupo
       await db.sequelize.query(
         `DELETE a FROM conteos_asignaciones a
-         INNER JOIN ubicaciones u ON a.ubicacion_id = u.id
-         WHERE a.usuario_id        = ?
-           AND u.bodega_id         = ?
-           AND a.conteo_grupo_id   = ?
-           AND a.estado            = 0`,
-        { replacements: [usuario_id, bodega_id, conteo_grupo_id], transaction },
+             INNER JOIN ubicaciones u ON a.ubicacion_id = u.id
+             WHERE a.usuario_id = ? 
+               AND u.bodega_id = ? 
+               AND a.conteo_grupo_id = ?
+               AND a.estado = 0`,
+        [usuario_id, bodega_id, conteo_grupo_id],
       );
 
       // 3. Insertar nuevas ubicaciones si las hay
@@ -368,7 +393,7 @@ const AsignacionController = {
 
         await db.sequelize.query(
           "INSERT INTO conteos_asignaciones (usuario_id, conteo_grupo_id, ubicacion_id, empresa_id, estado) VALUES ?",
-          { replacements: [values], transaction },
+          [values],
         );
       }
 
