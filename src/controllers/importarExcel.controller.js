@@ -1,9 +1,33 @@
+// src/controllers/importarExcel.controller.js
 const xlsx = require("xlsx");
 const db = require("../config/database");
 
+// FIX: whitelist de tablas permitidas — previene SQL injection en tableName
+const TABLAS_PERMITIDAS = new Set([
+  "productos",
+  "saldos_global",
+  "ubicaciones",
+  "bodegas",
+  "usuarios",
+]);
+
+/**
+ * Higher-order function que genera un handler de importación de Excel.
+ *
+ * @param {string}   tableName   - Nombre de la tabla destino (debe estar en TABLAS_PERMITIDAS)
+ * @param {string[]} columns     - Columnas en el orden del INSERT. La primera se usa como clave.
+ * @param {Function} validarFila - (opcional) async (row, index, empresa_id) => string|null
+ */
 const importarExcel =
   (tableName, columns, validarFila = null) =>
   async (req, res) => {
+    // FIX: validar tableName contra whitelist antes de cualquier operación
+    if (!TABLAS_PERMITIDAS.has(tableName)) {
+      return res
+        .status(400)
+        .json({ message: `Tabla no permitida: ${tableName}` });
+    }
+
     if (!req.file) {
       return res.status(400).json({ message: "No se recibió ningún archivo" });
     }
@@ -17,11 +41,10 @@ const importarExcel =
         return res.status(400).json({ message: "El archivo está vacío" });
       }
 
+      // FIX: validación de columnas independiente de transformRow
       const excelColumns = Object.keys(data[0]);
-      const requiredColumns = columns.filter(
-        (c) => !req.transformRow || excelColumns.includes(c)
-      );
-      const missing = requiredColumns.filter((c) => !excelColumns.includes(c));
+      const missing = columns.filter((c) => !excelColumns.includes(c));
+
       if (missing.length) {
         return res.status(400).json({
           message: "Columnas faltantes en el Excel",
@@ -32,6 +55,8 @@ const importarExcel =
       const placeholders = columns.map(() => "?").join(", ");
       const updateCols = columns.slice(1);
 
+      // tableName y columns son seguros: tableName pasó la whitelist,
+      // columns son strings definidos en código (no vienen del cliente)
       const sql = `
         INSERT INTO ${tableName} (${columns.join(", ")})
         VALUES (${placeholders})
@@ -43,16 +68,9 @@ const importarExcel =
         }
       `;
 
-      let total = 0;
-      const errores = [];
       let insertados = 0;
       let actualizados = 0;
-      const existsSql = `
-        SELECT 1
-        FROM ${tableName}
-        WHERE ${columns[0]} = ?
-        LIMIT 1
-      `;
+      const errores = [];
 
       for (let i = 0; i < data.length; i++) {
         let row = data[i];
@@ -61,7 +79,7 @@ const importarExcel =
           row = { ...row, ...req.transformRow(row) };
         }
 
-        // 🔹 Validaciones específicas por entidad
+        // Validaciones específicas por entidad
         if (validarFila) {
           const error = await validarFila(row, i, req.user?.empresa_id);
           if (error) {
@@ -81,41 +99,45 @@ const importarExcel =
           continue;
         }
 
-        const [existe] = await db.sequelize.query(existsSql, {
-          replacements: [values[0]],
-        });
-
-        // Ejecutar INSERT / UPDATE (el mismo SQL de siempre)
-        await db.sequelize.query(sql, {
+        // FIX: usar affectedRows en lugar de SELECT EXISTS por cada fila
+        // MySQL ON DUPLICATE KEY UPDATE: affectedRows=1 → insert, affectedRows=2 → update
+        const [, meta] = await db.sequelize.query(sql, {
           replacements: values,
         });
 
-        if (existe.length > 0) {
+        if (meta?.affectedRows === 2) {
           actualizados++;
         } else {
           insertados++;
         }
-
-        total++;
       }
 
+      const total = insertados + actualizados;
+
+      // FIX: si hubo filas válidas Y errores, responder 207 con el detalle completo
+      // (antes retornaba 400 aunque hubiera importado filas exitosamente)
       if (errores.length) {
-        return res.status(400).json({
-          message: "El archivo contiene errores",
-          totalInsertados: total,
+        return res.status(total > 0 ? 207 : 400).json({
+          message:
+            total > 0
+              ? "Importación parcial con errores"
+              : "El archivo contiene errores",
+          total,
+          insertados,
+          actualizados,
           errores,
         });
       }
 
-      res.json({
+      return res.json({
         message: `${tableName} importada correctamente`,
         total,
         insertados,
         actualizados,
       });
     } catch (error) {
-      console.error(`Error importando ${tableName}:`, error);
-      res.status(500).json({ message: `Error importando ${tableName}` });
+      console.error(`[importarExcel.${tableName}]`, error);
+      return res.status(500).json({ message: `Error importando ${tableName}` });
     }
   };
 
