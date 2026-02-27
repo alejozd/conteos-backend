@@ -16,7 +16,8 @@ const AsignacionController = {
             a.ubicacion_id,
             u.nombre              AS ubicacion_nombre,
             u.bodega_id,
-            b.nombre              AS bodega_nombre
+            b.nombre              AS bodega_nombre,
+            g.fecha
          FROM conteos_asignaciones a
          INNER JOIN conteos_grupos g ON a.conteo_grupo_id = g.id
          INNER JOIN ubicaciones    u ON a.ubicacion_id    = u.id
