@@ -201,7 +201,8 @@ const listarSaldosResumen = async (req, res) => {
           p.referencia,
           COALESCE(sg.saldo, 0)        AS saldo_sistema,
           COALESCE(SUM(c.cantidad), 0) AS conteo_total,
-          COALESCE(sg.saldo, 0) - COALESCE(SUM(c.cantidad), 0) AS diferencia
+          COALESCE(sg.saldo, 0) - COALESCE(SUM(c.cantidad), 0) AS diferencia,
+          MAX(c.timestamp)             AS ultimo_conteo
        FROM productos p
        LEFT JOIN saldos_global sg
               ON sg.producto_id = p.id AND sg.empresa_id = p.empresa_id
