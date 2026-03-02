@@ -416,6 +416,56 @@ const conteos_stats = async (req, res) => {
   }
 };
 
+// ─── Exportar Conteos Brutos ──────────────────────────────────────────────────
+
+/**
+ * GET /admin/conteos-exportar?conteo_grupo_id=X
+ * Retorna todos los registros individuales del grupo para exportar a Excel.
+ * A diferencia de listarSaldosResumen (que agrupa por producto),
+ * aquí cada fila es un conteo individual con toda su información.
+ */
+const exportarConteosGrupo = async (req, res) => {
+  const { empresa_id } = req.user;
+  const { conteo_grupo_id } = req.query;
+
+  if (!conteo_grupo_id) {
+    return res.status(400).json({ message: "conteo_grupo_id es obligatorio" });
+  }
+
+  try {
+    const rows = await db.query(
+      `SELECT
+          c.id                          AS id_conteo,
+          p.referencia,
+          p.nombre                      AS producto,
+          c.cantidad,
+          b.nombre                      AS bodega,
+          ub.nombre                     AS ubicacion,
+          u.username                    AS usuario,
+          c.timestamp                   AS fecha_conteo,
+          c.estado,
+          c.motivo_anulacion,
+          ua.username                   AS usuario_anula,
+          c.fecha_anulacion
+       FROM conteos c
+       JOIN  productos p    ON p.id  = c.producto_id
+       JOIN  usuarios u     ON u.id  = c.usuario_id
+       LEFT JOIN ubicaciones ub ON ub.id = c.ubicacion_id
+       LEFT JOIN bodegas b      ON b.id  = ub.bodega_id
+       LEFT JOIN usuarios ua    ON ua.id = c.usuario_anula
+       WHERE c.empresa_id      = ?
+         AND c.conteo_grupo_id = ?
+       ORDER BY c.timestamp ASC`,
+      [empresa_id, conteo_grupo_id],
+    );
+
+    return res.json(rows);
+  } catch (error) {
+    console.error("[admin.exportarConteosGrupo]", error);
+    return res.status(500).json({ message: "Error al exportar conteos" });
+  }
+};
+
 // ─── Exports ──────────────────────────────────────────────────────────────────
 
 module.exports = {
@@ -428,4 +478,5 @@ module.exports = {
   anularConteo,
   getConteosAnulados,
   conteos_stats,
+  exportarConteosGrupo,
 };
